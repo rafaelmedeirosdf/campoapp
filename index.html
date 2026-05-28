@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>CampoApp — Rastreio de Campanha</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <!-- jsPDF + AutoTable para geração de PDF no browser -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- Firebase SDK v10 compat (single-file, sem bundler) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+
+    :root {
+      --green:  #22c55e;
+      --yellow: #eab308;
+      --red:    #ef4444;
+      --accent: #6366f1;
+      --bg:     #0f172a;
+      --card:   #1e293b;
+      --border: #334155;
+      --text:   #e2e8f0;
+      --muted:  #64748b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100dvh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app-shell { position: relative; z-index: 1; }
+
+    .header-bar {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .recep-btn {
+      transition: all 0.18s ease;
+      border: 2px solid transparent;
+      outline: none;
+    }
+    .recep-btn:active { transform: scale(0.96); }
+    .recep-btn.selected-apoiador { border-color: var(--green);  background: rgba(34,197,94,0.15); }
+    .recep-btn.selected-indeciso { border-color: var(--yellow); background: rgba(234,179,8,0.15); }
+    .recep-btn.selected-rejeicao { border-color: var(--red);    background: rgba(239,68,68,0.15); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #818cf8);
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary:not(:disabled):active { transform: scale(0.98); }
+
+    .btn-pdf {
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .btn-pdf:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-pdf:not(:disabled):active { transform: scale(0.98); }
+
+    .gps-pill {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+    }
+
+    .visit-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .visit-card:hover { border-color: var(--accent); }
+    .visit-card .badge {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+    .badge-apoiador { background: rgba(34,197,94,0.2);  color: var(--green);  }
+    .badge-indeciso { background: rgba(234,179,8,0.2);  color: var(--yellow); }
+    .badge-rejeicao { background: rgba(239,68,68,0.2);  color: var(--red);    }
+
+    .mini-map {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      display: block;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 9999;
+      pointer-events: none;
+      min-width: 260px;
+      max-width: 90vw;
+      text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .offline-banner {
+      background: rgba(234,179,8,0.15);
+      border: 1px solid rgba(234,179,8,0.4);
+      color: var(--yellow);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+    }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    input[type="text"] {
+      background: #0f172a;
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
+    input[type="text"]::placeholder { color: var(--muted); }
+
+    .section-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .empty-state { color: var(--muted); }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .accent-line {
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), #818cf8, transparent);
+      border-radius: 2px;
+    }
+
+    /* PDF progress overlay */
+    #pdfOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.85);
+      backdrop-filter: blur(4px);
+      z-index: 9998;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    #pdfOverlay.hidden { display: none; }
+    #pdfProgress {
+      width: 260px;
+      height: 4px;
+      background: #334155;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    #pdfProgressBar {
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #16a34a);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+  </style>
+</head>
+<body>
+
+<!-- PDF Generation Overlay -->
+<div id="pdfOverlay" class="hidden">
+  <div class="spinner" style="width:36px;height:36px;border-width:3px;border-top-color:#22c55e;"></div>
+  <p id="pdfOverlayMsg" class="text-sm font-bold text-slate-300">Gerando PDFs...</p>
+  <div id="pdfProgress">
+    <div id="pdfProgressBar"></div>
+  </div>
+  <p id="pdfOverlayDetail" class="text-xs text-slate-500 font-mono">Aguarde...</p>
+</div>
+
+<div class="app-shell max-w-lg mx-auto pb-28">
+
+  <!-- ═══ HEADER ═══ -->
+  <header class="header-bar px-4 pt-10 pb-5 sticky top-0 z-50">
+    <div class="accent-line mb-4"></div>
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="section-label mb-0.5">CAMPO APP</p>
+        <h1 class="text-2xl font-extrabold tracking-tight">Rastreio de Campanha</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <div id="offlineBadge" class="offline-banner hidden px-2 py-1 rounded-md flex items-center gap-1">
+          <i data-lucide="wifi-off" class="w-3 h-3"></i>
+          <span>OFFLINE</span>
+        </div>
+        <button
+          onclick="exportCSV()"
+          class="flex items-center gap-1.5 text-sm font-bold px-3 py-2 rounded-lg border border-slate-600 hover:border-indigo-400 transition-colors"
+          title="Exportar CSV"
+        >
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">CSV</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Stat bar -->
+    <div class="grid grid-cols-3 gap-2 mt-4">
+      <div class="stat-card p-2.5 text-center">
+        <p class="text-lg font-extrabold text-green-400" id="countApoiador">0</p>
+        <p class="section-label">Apoiadores</p>
+      </div>
+      <div class="stat-card p-2.5 text-center">
+        <p class="text-lg font-extrabold text-yellow-400" id="countIndeciso">0</p>
+        <p class="section-label">Indecisos</p>
+      </div>
+      <div class="stat-card p-2.5 text-center">
+        <p class="text-lg font-extrabold text-red-400" id="countRejeicao">0</p>
+        <p class="section-label">Rejeições</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="px-4 pt-4 space-y-6">
+
+    <!-- ═══ FORM CARD ═══ -->
+    <section>
+      <p class="section-label mb-2">Nova Visita</p>
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4 space-y-4">
+
+        <div>
+          <label class="block text-sm font-semibold mb-1.5 text-slate-300">Nome do Apoiador</label>
+          <input
+            type="text"
+            id="nomeEleitor"
+            placeholder="Digite o nome do apoiador..."
+            class="w-full rounded-xl px-4 py-3 text-base font-medium"
+            autocomplete="off"
+            maxlength="100"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold mb-2 text-slate-300">Receptividade</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button class="recep-btn rounded-xl py-3 px-2 flex flex-col items-center gap-1.5 border-2 border-slate-600"
+              data-value="Apoiador" onclick="selectReceptividade(this,'Apoiador')">
+              <span class="text-xl">👍</span>
+              <span class="text-xs font-bold text-green-400">Apoiador</span>
+            </button>
+            <button class="recep-btn rounded-xl py-3 px-2 flex flex-col items-center gap-1.5 border-2 border-slate-600"
+              data-value="Indeciso" onclick="selectReceptividade(this,'Indeciso')">
+              <span class="text-xl">🤔</span>
+              <span class="text-xs font-bold text-yellow-400">Indeciso</span>
+            </button>
+            <button class="recep-btn rounded-xl py-3 px-2 flex flex-col items-center gap-1.5 border-2 border-slate-600"
+              data-value="Rejeição" onclick="selectReceptividade(this,'Rejeição')">
+              <span class="text-xl">👎</span>
+              <span class="text-xs font-bold text-red-400">Rejeição</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="gpsStatus" class="gps-pill hidden flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-400">
+          <i data-lucide="map-pin" class="w-3.5 h-3.5 flex-shrink-0"></i>
+          <span id="gpsStatusText">Aguardando GPS...</span>
+        </div>
+
+        <button id="btnRegistrar" onclick="registrarVisita()"
+          class="btn-primary w-full py-4 rounded-xl font-extrabold text-base text-white flex items-center justify-center gap-2">
+          <i data-lucide="map-pin" class="w-5 h-5"></i>
+          Registrar Visita e GPS
+        </button>
+      </div>
+    </section>
+
+    <!-- ═══ PDF APOIADORES ═══ -->
+    <section>
+      <p class="section-label mb-2">Relatório de Apoiadores</p>
+      <div class="bg-slate-800 rounded-2xl border border-slate-700 p-4">
+        <p class="text-sm text-slate-400 mb-3">
+          Gera um PDF individual para cada apoiador com histórico completo de visitas, coordenadas e localização no mapa.
+        </p>
+        <button id="btnGerarPDF" onclick="gerarPDFApoiadores()"
+          class="btn-pdf w-full py-3.5 rounded-xl font-extrabold text-base text-white flex items-center justify-center gap-2">
+          <i data-lucide="file-text" class="w-5 h-5"></i>
+          Gerar PDFs dos Apoiadores
+        </button>
+        <p id="pdfApoiadorCount" class="text-center text-xs text-slate-500 font-mono mt-2 hidden"></p>
+      </div>
+    </section>
+
+    <!-- ═══ VISITAS DO DIA ═══ -->
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <p class="section-label">Visitas de Hoje</p>
+        <span id="totalVisitas" class="gps-pill px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-400 text-xs">0 registros</span>
+      </div>
+      <div id="listaVisitas" class="space-y-3">
+        <div id="emptyState" class="empty-state text-center py-10">
+          <i data-lucide="clipboard-list" class="w-10 h-10 mx-auto mb-3 opacity-30"></i>
+          <p class="text-sm">Nenhuma visita registrada hoje.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="px-4 py-3 rounded-2xl font-bold text-sm shadow-2xl border"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  ⚙️  FIREBASE CONFIG — SUBSTITUA PELOS SEUS VALORES REAIS
+// ═══════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyDkiqGmwkziMptTo67YCR4Ro1KqDzKiEQY",
+  authDomain:        "campoapp-5a031.firebaseapp.com",
+  projectId:         "campoapp-5a031",
+  storageBucket:     "campoapp-5a031.firebasestorage.app",
+  messagingSenderId: "7250304860",
+  appId:             "1:7250304860:web:8302878a21046a8c81eb99"
+};
+
+// Google Maps Static API Key (para mini-mapas nas cards da tela)
+const MAPS_STATIC_KEY = "SUA_MAPS_STATIC_API_KEY_AQUI";
+
+// Nome da campanha — aparece nos PDFs gerados
+const NOME_CAMPANHA = "Campanha Política 2026";
+
+// ═══════════════════════════════════════════════════════════
+//  FIREBASE + OFFLINE PERSISTENCE
+// ═══════════════════════════════════════════════════════════
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+db.enablePersistence({ synchronizeTabs: true })
+  .then(() => console.log("✅ Persistência offline ativa"))
+  .catch(err => {
+    if (err.code === 'failed-precondition') console.warn("⚠️ Múltiplas abas abertas");
+    else if (err.code === 'unimplemented')  console.warn("⚠️ Browser sem suporte a IndexedDB");
+  });
+
+// ═══════════════════════════════════════════════════════════
+//  ESTADO
+// ═══════════════════════════════════════════════════════════
+let receptividadeSelecionada = null;
+let visitasCache = [];
+
+// ═══════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+  monitorarConectividade();
+  iniciarSnapshotDoDia();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  CONECTIVIDADE
+// ═══════════════════════════════════════════════════════════
+function monitorarConectividade() {
+  const badge = document.getElementById('offlineBadge');
+  const update = () => {
+    navigator.onLine ? badge.classList.add('hidden') : badge.classList.remove('hidden');
+    lucide.createIcons();
+  };
+  window.addEventListener('online',  update);
+  window.addEventListener('offline', update);
+  update();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RECEPTIVIDADE
+// ═══════════════════════════════════════════════════════════
+function selectReceptividade(btn, valor) {
+  document.querySelectorAll('.recep-btn').forEach(b =>
+    b.classList.remove('selected-apoiador','selected-indeciso','selected-rejeicao'));
+  const classMap = { Apoiador:'selected-apoiador', Indeciso:'selected-indeciso', 'Rejeição':'selected-rejeicao' };
+  btn.classList.add(classMap[valor]);
+  receptividadeSelecionada = valor;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  REGISTRAR VISITA
+// ═══════════════════════════════════════════════════════════
+async function registrarVisita() {
+  const nome = document.getElementById('nomeEleitor').value.trim();
+  if (!nome)                    { showToast("⚠️ Informe o nome do apoiador", "warning"); return; }
+  if (!receptividadeSelecionada){ showToast("⚠️ Selecione a receptividade", "warning"); return; }
+
+  const btn = document.getElementById('btnRegistrar');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span><span> Obtendo GPS...</span>`;
+  mostrarStatusGPS("Capturando localização com alta precisão...", "loading");
+
+  if (!navigator.geolocation) {
+    showToast("❌ GPS não disponível", "error");
+    resetarBotao(); return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const { latitude, longitude, accuracy } = pos.coords;
+
+      if (accuracy > 30) {
+        mostrarStatusGPS(`❌ Precisão insuficiente: ${Math.round(accuracy)}m. Vá para local aberto.`, "error");
+        showToast(`GPS impreciso (${Math.round(accuracy)}m). Tente em área aberta.`, "error");
+        resetarBotao(); return;
+      }
+
+      mostrarStatusGPS(`✅ ${latitude.toFixed(6)}, ${longitude.toFixed(6)} · ±${Math.round(accuracy)}m`, "success");
+      btn.innerHTML = `<span class="spinner"></span><span> Gravando...</span>`;
+
+      try {
+        await db.collection('visitas').add({
+          nome,
+          receptividade: receptividadeSelecionada,
+          timestamp:     firebase.firestore.FieldValue.serverTimestamp(),
+          localizacao:   { lat: latitude, lng: longitude, precisao: Math.round(accuracy) }
+        });
+        showToast("✅ Visita registrada!", "success");
+        limparFormulario();
+      } catch(err) {
+        console.error(err);
+        showToast("❌ Erro ao salvar. Verifique a config do Firebase.", "error");
+      }
+      resetarBotao();
+    },
+    err => {
+      const msgs = {
+        1: "Permissão de GPS negada.",
+        2: "Sinal GPS indisponível. Vá para área aberta.",
+        3: "GPS demorou demais. Tente novamente."
+      };
+      mostrarStatusGPS(`❌ ${msgs[err.code] || "Erro de GPS"}`, "error");
+      showToast(msgs[err.code] || "Erro de GPS", "error");
+      resetarBotao();
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+function resetarBotao() {
+  const btn = document.getElementById('btnRegistrar');
+  btn.disabled = false;
+  btn.innerHTML = `<i data-lucide="map-pin" class="w-5 h-5"></i> Registrar Visita e GPS`;
+  lucide.createIcons();
+}
+
+function limparFormulario() {
+  document.getElementById('nomeEleitor').value = '';
+  receptividadeSelecionada = null;
+  document.querySelectorAll('.recep-btn').forEach(b =>
+    b.classList.remove('selected-apoiador','selected-indeciso','selected-rejeicao'));
+  setTimeout(() => document.getElementById('gpsStatus').classList.add('hidden'), 4000);
+}
+
+function mostrarStatusGPS(msg, tipo) {
+  const el  = document.getElementById('gpsStatus');
+  const txt = document.getElementById('gpsStatusText');
+  el.classList.remove('hidden');
+  txt.textContent = msg;
+  el.className = 'gps-pill flex items-center gap-2 px-3 py-2 rounded-lg border';
+  if      (tipo === 'success') el.classList.add('bg-green-950','border-green-800','text-green-400');
+  else if (tipo === 'error')   el.classList.add('bg-red-950','border-red-800','text-red-400');
+  else                         el.classList.add('bg-slate-900','border-slate-700','text-slate-400');
+  lucide.createIcons();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════
+let toastTimer = null;
+function showToast(msg, tipo = 'info') {
+  const toast  = document.getElementById('toast');
+  const styles = {
+    success: 'bg-green-900 border-green-600 text-green-200',
+    error:   'bg-red-900 border-red-600 text-red-200',
+    warning: 'bg-yellow-900 border-yellow-600 text-yellow-200',
+    info:    'bg-slate-800 border-slate-600 text-slate-200'
+  };
+  toast.className  = `px-4 py-3 rounded-2xl font-bold text-sm shadow-2xl border ${styles[tipo]||styles.info}`;
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SNAPSHOT — VISITAS DO DIA
+// ═══════════════════════════════════════════════════════════
+function iniciarSnapshotDoDia() {
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+
+  const query = db.collection('visitas')
+    .where('timestamp','>=',hoje)
+    .orderBy('timestamp','desc');
+
+  query.onSnapshot(
+    snap => {
+      visitasCache = [];
+      snap.forEach(doc => visitasCache.push({ id: doc.id, ...doc.data() }));
+      renderizarVisitas(visitasCache);
+    },
+    () => {
+      // Fallback sem filtro de data (índice ainda não criado)
+      db.collection('visitas').orderBy('timestamp','desc').limit(50)
+        .onSnapshot(snap => {
+          visitasCache = [];
+          snap.forEach(doc => visitasCache.push({ id: doc.id, ...doc.data() }));
+          renderizarVisitas(visitasCache);
+        });
+    }
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER LISTA
+// ═══════════════════════════════════════════════════════════
+function renderizarVisitas(visitas) {
+  const lista = document.getElementById('listaVisitas');
+  const empty = document.getElementById('emptyState');
+  const total = document.getElementById('totalVisitas');
+
+  const counts = { Apoiador:0, Indeciso:0, 'Rejeição':0 };
+  visitas.forEach(v => { if(counts[v.receptividade]!==undefined) counts[v.receptividade]++; });
+
+  document.getElementById('countApoiador').textContent = counts['Apoiador'];
+  document.getElementById('countIndeciso').textContent = counts['Indeciso'];
+  document.getElementById('countRejeicao').textContent = counts['Rejeição'];
+  total.textContent = `${visitas.length} registro${visitas.length!==1?'s':''}`;
+
+  // Atualiza contador do botão PDF
+  const apoiadores = agruparApoiadores(visitas);
+  const countEl = document.getElementById('pdfApoiadorCount');
+  if(Object.keys(apoiadores).length > 0){
+    countEl.textContent = `${Object.keys(apoiadores).length} apoiador(es) com dados disponíveis`;
+    countEl.classList.remove('hidden');
+  } else {
+    countEl.classList.add('hidden');
+  }
+
+  lista.querySelectorAll('.visit-card').forEach(c => c.remove());
+
+  if(visitas.length === 0){
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  visitas.forEach(v => lista.appendChild(criarCardVisita(v)));
+  lucide.createIcons();
+}
+
+function criarCardVisita(visita) {
+  const div       = document.createElement('div');
+  div.className   = 'visit-card';
+  const badgeClass = { Apoiador:'badge-apoiador', Indeciso:'badge-indeciso', 'Rejeição':'badge-rejeicao' }[visita.receptividade] || 'badge-indeciso';
+  const emoji      = { Apoiador:'👍', Indeciso:'🤔', 'Rejeição':'👎' }[visita.receptividade] || '❓';
+  const loc        = visita.localizacao || {};
+  const lat        = loc.lat || 0;
+  const lng        = loc.lng || 0;
+  const prec       = loc.precisao || '?';
+  let hora = '—';
+  if(visita.timestamp?.toDate){
+    hora = visita.timestamp.toDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  }
+  const mapUrl = MAPS_STATIC_KEY && MAPS_STATIC_KEY !== "SUA_MAPS_STATIC_API_KEY_AQUI"
+    ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=17&size=600x120&scale=2&maptype=roadmap&markers=color:red%7C${lat},${lng}&style=feature:all|element:geometry|color:0x242f3e&key=${MAPS_STATIC_KEY}`
+    : null;
+
+  div.innerHTML = `
+    ${mapUrl
+      ? `<img class="mini-map" src="${mapUrl}" alt="Mapa" loading="lazy" onerror="this.style.display='none'" />`
+      : `<div class="flex items-center justify-center h-8 border-b border-slate-700 bg-slate-900/50 text-xs text-slate-600 gap-1.5">
+           <i data-lucide="map" class="w-3 h-3"></i>
+           <span>Configure MAPS_STATIC_KEY para ver o mapa</span>
+         </div>`}
+    <div class="p-3 space-y-2">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-base flex-shrink-0">${emoji}</span>
+          <span class="font-extrabold text-sm truncate">${escapeHtml(visita.nome)}</span>
+        </div>
+        <span class="badge ${badgeClass} flex-shrink-0">${visita.receptividade}</span>
+      </div>
+      <div class="flex items-center gap-3 text-xs" style="color:var(--muted);font-family:'Space Mono',monospace">
+        <span class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i>${hora}</span>
+        <span class="flex items-center gap-1"><i data-lucide="crosshair" class="w-3 h-3"></i>±${prec}m</span>
+        <span class="flex items-center gap-1 truncate"><i data-lucide="map-pin" class="w-3 h-3 flex-shrink-0"></i>${lat.toFixed(5)},${lng.toFixed(5)}</span>
+      </div>
+    </div>`;
+  return div;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EXPORTAR CSV
+// ═══════════════════════════════════════════════════════════
+function exportCSV() {
+  if(visitasCache.length === 0){ showToast("Nenhum dado para exportar","warning"); return; }
+  const header = ['Nome','Receptividade','Data/Hora','Latitude','Longitude','Precisao(m)'];
+  const linhas = visitasCache.map(v => {
+    const loc  = v.localizacao || {};
+    const hora = v.timestamp?.toDate ? v.timestamp.toDate().toLocaleString('pt-BR') : '';
+    return [`"${(v.nome||'').replace(/"/g,'""')}"`,`"${(v.receptividade||'').replace(/"/g,'""')}"`,`"${hora}"`,loc.lat||'',loc.lng||'',loc.precisao||''].join(';');
+  });
+  const csv  = '\ufeff' + [header.join(';'),...linhas].join('\r\n');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `visitas_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✅ ${visitasCache.length} registros exportados`,"success");
+}
+
+// ═══════════════════════════════════════════════════════════
+//  AGRUPAR APOIADORES (helper compartilhado)
+// ═══════════════════════════════════════════════════════════
+function agruparApoiadores(visitas) {
+  const grupos = {};
+  visitas
+    .filter(v => v.receptividade === 'Apoiador')
+    .forEach(v => {
+      const chave = v.nome.trim().toLowerCase();
+      if(!grupos[chave]) grupos[chave] = { nomeExibicao: v.nome.trim(), visitas: [] };
+      grupos[chave].visitas.push(v);
+    });
+  // Ordena visitas por timestamp dentro de cada apoiador
+  Object.values(grupos).forEach(g => {
+    g.visitas.sort((a,b) => {
+      const ta = a.timestamp?.toDate?.() || new Date(0);
+      const tb = b.timestamp?.toDate?.() || new Date(0);
+      return ta - tb;
+    });
+  });
+  return grupos;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  GERAR PDF — APOIADORES
+//  • Um PDF por apoiador, baixado sequencialmente
+//  • Cada PDF: capa + tabela de visitas + bloco de mapa por visita
+// ═══════════════════════════════════════════════════════════
+async function gerarPDFApoiadores() {
+  const apoiadores = agruparApoiadores(visitasCache);
+  const nomes      = Object.keys(apoiadores);
+
+  if(nomes.length === 0){
+    showToast("Nenhum apoiador registrado ainda","warning");
+    return;
+  }
+
+  // Bloqueia botão e mostra overlay
+  const btn = document.getElementById('btnGerarPDF');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span><span> Gerando PDFs...</span>`;
+
+  const overlay   = document.getElementById('pdfOverlay');
+  const msgEl     = document.getElementById('pdfOverlayMsg');
+  const detailEl  = document.getElementById('pdfOverlayDetail');
+  const barEl     = document.getElementById('pdfProgressBar');
+  overlay.classList.remove('hidden');
+
+  // Aguarda um frame para o overlay aparecer antes de bloquear o thread
+  await sleep(80);
+
+  for(let i = 0; i < nomes.length; i++){
+    const chave     = nomes[i];
+    const apoiador  = apoiadores[chave];
+    const pct       = Math.round(((i) / nomes.length) * 100);
+    barEl.style.width = pct + '%';
+    msgEl.textContent = `Gerando PDF ${i+1} de ${nomes.length}`;
+    detailEl.textContent = apoiador.nomeExibicao;
+    await sleep(30);
+
+    try {
+      const pdf = construirPDFApoiador(apoiador);
+      const nomeArquivo = `apoiador_${sanitizarNomeArquivo(apoiador.nomeExibicao)}.pdf`;
+      pdf.save(nomeArquivo);
+      await sleep(400); // Intervalo entre downloads para não bloquear o browser
+    } catch(err) {
+      console.error(`Erro ao gerar PDF para ${apoiador.nomeExibicao}:`, err);
+    }
+  }
+
+  barEl.style.width = '100%';
+  msgEl.textContent = '✅ PDFs gerados com sucesso!';
+  detailEl.textContent = `${nomes.length} arquivo(s) baixado(s)`;
+  await sleep(1200);
+
+  overlay.classList.add('hidden');
+  btn.disabled = false;
+  btn.innerHTML = `<i data-lucide="file-text" class="w-5 h-5"></i> Gerar PDFs dos Apoiadores`;
+  lucide.createIcons();
+  showToast(`✅ ${nomes.length} PDF(s) gerado(s) com sucesso!`, "success");
+}
+
+// ─────────────────────────────────────────────────────────
+//  CONSTRUTOR DE PDF — um apoiador
+// ─────────────────────────────────────────────────────────
+function construirPDFApoiador(apoiador) {
+  const { jsPDF } = window.jspdf;
+  const doc        = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+
+  const PW  = 210; // page width mm
+  const PH  = 297; // page height mm
+  const ML  = 15;  // margin left
+  const MR  = 15;  // margin right
+  const MT  = 0;
+  const CW  = PW - ML - MR; // content width
+
+  const VERDE     = [22, 163, 74];    // #16a34a
+  const VERDE_CLR = [187, 247, 208];  // #bbf7d0
+  const CINZA_ESC = [30, 41, 59];     // #1e293b
+  const CINZA_MED = [71, 85, 105];    // #475569
+  const CINZA_CLA = [148, 163, 184];  // #94a3b8
+  const BRANCO    = [255, 255, 255];
+  const INDIGO    = [79, 70, 229];    // #4f46e5
+  const VERMELHO  = [220, 38, 38];    // #dc2626
+
+  const dataGeracao = new Date().toLocaleString('pt-BR');
+  let y = 0;
+
+  // ── CABEÇALHO VERDE ──────────────────────────────────────
+  doc.setFillColor(...CINZA_ESC);
+  doc.rect(0, 0, PW, 52, 'F');
+
+  // Barra verde no topo
+  doc.setFillColor(...VERDE);
+  doc.rect(0, 0, PW, 5, 'F');
+
+  // Linha acento indigo
+  doc.setFillColor(...INDIGO);
+  doc.rect(ML, 14, 40, 1.5, 'F');
+
+  // Label CAMPO APP
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(7);
+  doc.setTextColor(...VERDE_CLR);
+  doc.text('CAMPO APP', ML, 12);
+
+  // Nome da campanha
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...CINZA_CLA);
+  doc.text(NOME_CAMPANHA, ML, 20);
+
+  // Título RELATÓRIO DE APOIADOR
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(18);
+  doc.setTextColor(...BRANCO);
+  doc.text('RELATÓRIO DE APOIADOR', ML, 30);
+
+  // Data de geração (canto direito)
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(7);
+  doc.setTextColor(...CINZA_CLA);
+  doc.text(`Gerado em: ${dataGeracao}`, PW - MR, 12, { align:'right' });
+
+  // ── CARD DO APOIADOR ─────────────────────────────────────
+  doc.setFillColor(15, 23, 42);
+  doc.roundedRect(ML, 38, CW, 22, 3, 3, 'F');
+  doc.setDrawColor(...VERDE);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(ML, 38, CW, 22, 3, 3, 'S');
+
+  // Ícone círculo verde
+  doc.setFillColor(...VERDE);
+  doc.circle(ML + 8, 49, 5, 'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...BRANCO);
+  doc.text('👤', ML + 5.5, 51.5);
+
+  // Nome do apoiador
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...BRANCO);
+  doc.text(apoiador.nomeExibicao, ML + 17, 46);
+
+  // Badge de visitas
+  const totalVisitas = apoiador.visitas.length;
+  const badgeText    = `${totalVisitas} visita${totalVisitas!==1?'s':''}`;
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...VERDE_CLR);
+  doc.text(`✅ Apoiador Confirmado  |  ${badgeText}`, ML + 17, 55);
+
+  y = 68;
+
+  // ── LINHA SEPARADORA ─────────────────────────────────────
+  doc.setDrawColor(...CINZA_MED);
+  doc.setLineWidth(0.3);
+  doc.line(ML, y - 2, PW - MR, y - 2);
+
+  // ── TÍTULO "HISTÓRICO DE VISITAS" ────────────────────────
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...VERDE);
+  doc.text('HISTÓRICO DE VISITAS', ML, y + 3);
+  y += 8;
+
+  // ── TABELA RESUMO ────────────────────────────────────────
+  const tableRows = apoiador.visitas.map((v, idx) => {
+    const loc  = v.localizacao || {};
+    const hora = v.timestamp?.toDate
+      ? v.timestamp.toDate().toLocaleString('pt-BR')
+      : 'Sem data';
+    return [
+      `#${idx+1}`,
+      hora,
+      loc.lat  ? loc.lat.toFixed(6)  : '—',
+      loc.lng  ? loc.lng.toFixed(6)  : '—',
+      loc.precisao ? `±${loc.precisao}m` : '—'
+    ];
+  });
+
+  doc.autoTable({
+    startY:   y,
+    head:     [['#','Data / Hora','Latitude','Longitude','Precisão']],
+    body:     tableRows,
+    margin:   { left: ML, right: MR },
+    styles: {
+      fontSize:  8,
+      cellPadding: 2.5,
+      font:      'helvetica',
+      textColor: [226, 232, 240],
+      fillColor: [15, 23, 42],
+      lineColor: [51, 65, 85],
+      lineWidth: 0.2
+    },
+    headStyles: {
+      fillColor:  [22, 163, 74],
+      textColor:  [255, 255, 255],
+      fontStyle:  'bold',
+      fontSize:   7.5,
+      halign:     'center'
+    },
+    alternateRowStyles: {
+      fillColor: [30, 41, 59]
+    },
+    columnStyles: {
+      0: { halign:'center', cellWidth: 10 },
+      1: { cellWidth: 50 },
+      2: { halign:'center', cellWidth: 33 },
+      3: { halign:'center', cellWidth: 33 },
+      4: { halign:'center', cellWidth: 24 }
+    }
+  });
+
+  y = doc.lastAutoTable.finalY + 10;
+
+  // ── BLOCO DE MAPA POR VISITA ──────────────────────────────
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...VERDE);
+  doc.text('LOCALIZAÇÃO POR VISITA', ML, y);
+  y += 6;
+
+  apoiador.visitas.forEach((v, idx) => {
+    const loc  = v.localizacao || {};
+    const lat  = loc.lat || 0;
+    const lng  = loc.lng || 0;
+    const prec = loc.precisao || 0;
+    const hora = v.timestamp?.toDate
+      ? v.timestamp.toDate().toLocaleString('pt-BR')
+      : 'Sem data';
+
+    const CARD_H    = 52;
+    const MAP_W     = 72;
+    const MAP_H     = CARD_H;
+    const INFO_X    = ML + MAP_W + 5;
+    const INFO_W    = CW - MAP_W - 5;
+
+    // Verifica se precisa de nova página
+    if(y + CARD_H + 8 > PH - 20){
+      doc.addPage();
+      // Mini header na nova página
+      doc.setFillColor(...CINZA_ESC);
+      doc.rect(0, 0, PW, 14, 'F');
+      doc.setFillColor(...VERDE);
+      doc.rect(0, 0, PW, 2, 'F');
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(7);
+      doc.setTextColor(...VERDE_CLR);
+      doc.text('CAMPO APP', ML, 9);
+      doc.setTextColor(...CINZA_CLA);
+      doc.setFont('helvetica','normal');
+      doc.text(apoiador.nomeExibicao, PW - MR, 9, { align:'right' });
+      y = 20;
+    }
+
+    // Card de fundo
+    doc.setFillColor(15, 23, 42);
+    doc.roundedRect(ML, y, CW, CARD_H, 2, 2, 'F');
+    doc.setDrawColor(...CINZA_ESC);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(ML, y, CW, CARD_H, 2, 2, 'S');
+
+    // ── Área do MAPA (desenhada com primitivas jsPDF) ──────
+    desenharMiniMapa(doc, ML, y, MAP_W, MAP_H, lat, lng);
+
+    // ── Informações à direita ──────────────────────────────
+    // Visita nº
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...CINZA_CLA);
+    doc.text(`VISITA #${idx+1}`, INFO_X, y + 6);
+
+    // Data/Hora
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...BRANCO);
+    doc.text(hora, INFO_X, y + 13);
+
+    // Separador
+    doc.setDrawColor(...CINZA_MED);
+    doc.setLineWidth(0.2);
+    doc.line(INFO_X, y + 16, INFO_X + INFO_W - 2, y + 16);
+
+    // Latitude
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...CINZA_CLA);
+    doc.text('Latitude', INFO_X, y + 22);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BRANCO);
+    doc.text(lat.toFixed(7), INFO_X, y + 27);
+
+    // Longitude
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...CINZA_CLA);
+    doc.text('Longitude', INFO_X, y + 34);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...BRANCO);
+    doc.text(lng.toFixed(7), INFO_X, y + 39);
+
+    // Precisão pill
+    doc.setFillColor(...VERDE);
+    doc.roundedRect(INFO_X, y + 41, 28, 7, 1, 1, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...BRANCO);
+    doc.text(`±${prec}m`, INFO_X + 14, y + 46, { align:'center' });
+
+    // Link Google Maps
+    const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...INDIGO);
+    doc.textWithLink('🔗 Abrir no Google Maps →', INFO_X, y + CARD_H - 4, { url: mapsUrl });
+
+    y += CARD_H + 5;
+  });
+
+  // ── RODAPÉ DA ÚLTIMA PÁGINA ──────────────────────────────
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let p = 1; p <= pageCount; p++){
+    doc.setPage(p);
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, PH - 12, PW, 12, 'F');
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...CINZA_CLA);
+    doc.text(`${NOME_CAMPANHA}  |  Relatório de Apoiador`, ML, PH - 5);
+    doc.text(`Pág. ${p} / ${pageCount}`, PW - MR, PH - 5, { align:'right' });
+  }
+
+  return doc;
+}
+
+// ─────────────────────────────────────────────────────────
+//  DESENHA MINI-MAPA COM jsPDF (sem imagem externa)
+//  Representa visualmente a localização com uma grade de
+//  ruas estilizada + pin vermelho + coordenadas no rodapé.
+// ─────────────────────────────────────────────────────────
+function desenharMiniMapa(doc, x, y, w, h, lat, lng) {
+  const AZUL_ESC  = [10, 20, 45];
+  const AZUL_RUA  = [30, 50, 90];
+  const AMARELO   = [234, 179, 8];
+  const VERMELHO  = [239, 68, 68];
+  const VERDE     = [22, 163, 74];
+  const BRANCO    = [255, 255, 255];
+  const CINZA     = [100, 116, 139];
+
+  // Fundo escuro do mapa
+  doc.setFillColor(...AZUL_ESC);
+  doc.roundedRect(x, y, w, h, 2, 2, 'F');
+
+  // Clip para manter conteúdo dentro do card
+  // (jsPDF não tem clip path, então desenhamos apenas dentro dos limites)
+
+  // Grade de ruas — linhas horizontais
+  doc.setDrawColor(...AZUL_RUA);
+  doc.setLineWidth(0.8);
+  const gaps = [0.2, 0.38, 0.55, 0.72];
+  gaps.forEach(g => {
+    doc.line(x, y + h*g, x + w, y + h*g);
+  });
+
+  // Grade de ruas — linhas verticais
+  const vgaps = [0.18, 0.38, 0.58, 0.78];
+  vgaps.forEach(g => {
+    doc.line(x + w*g, y, x + w*g, y + h*0.82);
+  });
+
+  // Avenida principal (mais larga — rua destacada)
+  doc.setDrawColor(...[50, 80, 130]);
+  doc.setLineWidth(2.2);
+  doc.line(x, y + h*0.46, x + w, y + h*0.46);
+  doc.setLineWidth(1.5);
+  doc.line(x + w*0.42, y, x + w*0.42, y + h*0.82);
+
+  // Área do rodapé do mapa (escura)
+  doc.setFillColor(5, 12, 30);
+  doc.rect(x, y + h*0.82, w, h*0.18, 'F');
+
+  // ── PIN de localização ──
+  const pinX = x + w * 0.5;
+  const pinY = y + h * 0.46;
+
+  // Sombra do pin
+  doc.setFillColor(0, 0, 0);
+  doc.ellipse(pinX, pinY + 1, 3, 1, 'F');
+
+  // Círculo de raio de alcance
+  doc.setDrawColor(...VERMELHO);
+  doc.setLineWidth(0.5);
+  doc.setFillColor(239, 68, 68, 0.1);
+  doc.circle(pinX, pinY, 5, 'S');
+
+  // Corpo do pin (gota)
+  doc.setFillColor(...VERMELHO);
+  doc.circle(pinX, pinY - 5, 3.5, 'F');
+
+  // Haste do pin
+  doc.setDrawColor(...VERMELHO);
+  doc.setLineWidth(1);
+  doc.line(pinX, pinY - 1.5, pinX, pinY);
+
+  // Ponto branco central do pin
+  doc.setFillColor(...BRANCO);
+  doc.circle(pinX, pinY - 5, 1.2, 'F');
+
+  // ── Coordenadas no rodapé do mapa ──
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(5.5);
+  doc.setTextColor(...CINZA);
+  doc.text(`${lat.toFixed(5)}, ${lng.toFixed(5)}`, x + w/2, y + h - 5, { align:'center' });
+
+  // Borda do card do mapa
+  doc.setDrawColor(...[30, 50, 90]);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(x, y, w, h, 2, 2, 'S');
+}
+
+// ─────────────────────────────────────────────────────────
+//  UTILITÁRIOS
+// ─────────────────────────────────────────────────────────
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function sanitizarNomeArquivo(nome) {
+  return nome
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-zA-Z0-9\s_-]/g,'')
+    .trim()
+    .replace(/\s+/g,'_')
+    .substring(0, 50)
+    .toLowerCase();
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
