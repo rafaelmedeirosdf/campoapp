@@ -1020,7 +1020,7 @@ function selectReceptividade(btn, valor) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  REGISTRAR VISITA
+//  REGISTRAR VISITA — corrigido
 // ═══════════════════════════════════════════════════════════
 async function registrarVisita() {
   const nome = document.getElementById('nomeEleitor').value.trim();
@@ -1031,59 +1031,101 @@ async function registrarVisita() {
   const btn = document.getElementById('btnRegistrar');
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner"></span><span> Obtendo GPS...</span>`;
-  mostrarStatusGPS("Capturando localização com alta precisão...", "loading");
+  mostrarStatusGPS("Capturando localização...", "loading");
 
   if (!navigator.geolocation) {
-    showToast("❌ GPS não disponível", "error");
+    showToast("❌ GPS não suportado neste dispositivo", "error");
     resetarBotao(); return;
   }
 
-  navigator.geolocation.getCurrentPosition(
-    async pos => {
-      const { latitude, longitude, accuracy } = pos.coords;
-
-      if (accuracy > 30) {
-        mostrarStatusGPS(`❌ Precisão insuficiente: ${Math.round(accuracy)}m. Vá para local aberto.`, "error");
-        showToast(`GPS impreciso (${Math.round(accuracy)}m). Tente em área aberta.`, "error");
-        resetarBotao(); return;
-      }
-
-      mostrarStatusGPS(`✅ GPS obtido · ±${Math.round(accuracy)}m · Buscando endereço...`, "success");
-      btn.innerHTML = `<span class="spinner"></span><span> Buscando endereço...</span>`;
-
-      const endereco = await buscarEndereco(latitude, longitude);
-      mostrarStatusGPS(`✅ ${endereco}`, "success");
-      btn.innerHTML = `<span class="spinner"></span><span> Gravando...</span>`;
-
-      try {
-        await db.collection('visitas').add({
-          nome,
-          receptividade: receptividadeSelecionada,
-          observacao:    obs,
-          endereco,
-          timestamp:     firebase.firestore.FieldValue.serverTimestamp(),
-          localizacao:   { lat: latitude, lng: longitude, precisao: Math.round(accuracy) }
-        });
-        showToast("✅ Visita registrada!", "success");
-        limparFormulario();
-      } catch(err) {
-        console.error(err);
-        showToast("❌ Erro ao salvar. Verifique o Firebase.", "error");
-      }
-      resetarBotao();
-    },
-    err => {
+  // Tenta primeiro com alta precisão, depois com precisão padrão
+  obterGPS(true)
+    .catch(() => {
+      mostrarStatusGPS("⚠️ Tentando modo padrão de GPS...", "loading");
+      return obterGPS(false);
+    })
+    .then(pos => processarPosicao(pos, nome, obs, btn))
+    .catch(err => {
       const msgs = {
-        1: "Permissão de GPS negada.",
-        2: "Sinal GPS indisponível. Vá para área aberta.",
-        3: "GPS demorou demais. Tente novamente."
+        1: "Permissão de GPS negada. Vá em Configurações e permita o acesso à localização.",
+        2: "Sinal de GPS não encontrado. Vá para uma área aberta.",
+        3: "GPS demorou demais. Verifique o sinal e tente novamente."
       };
-      mostrarStatusGPS(`❌ ${msgs[err.code] || "Erro de GPS"}`, "error");
-      showToast(msgs[err.code] || "Erro de GPS", "error");
+      const msg = msgs[err.code] || `Erro de GPS (código ${err.code || '?'})`;
+      mostrarStatusGPS(`❌ ${msg}`, "error");
+      showToast(`❌ ${msg}`, "error");
       resetarBotao();
-    },
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-  );
+    });
+}
+
+// Promessa que resolve com a posição ou rejeita com erro
+function obterGPS(highAccuracy) {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: highAccuracy,
+      timeout:            highAccuracy ? 12000 : 8000,
+      maximumAge:         0
+    });
+  });
+}
+
+// Processa a posição obtida e salva no Firestore
+async function processarPosicao(pos, nome, obs, btn) {
+  const { latitude, longitude, accuracy } = pos.coords;
+  const precisao = Math.round(accuracy);
+
+  // Precisão acima de 200m — bloqueia (sinal muito ruim)
+  if (accuracy > 200) {
+    mostrarStatusGPS(
+      `❌ GPS muito impreciso: ±${precisao}m. Saia para área aberta e tente novamente.`,
+      "error"
+    );
+    showToast(`GPS impreciso: ±${precisao}m. Tente em local aberto.`, "error");
+    resetarBotao();
+    return;
+  }
+
+  // Precisão entre 50–200m — avisa mas permite salvar
+  if (accuracy > 50) {
+    mostrarStatusGPS(
+      `⚠️ GPS com precisão reduzida: ±${precisao}m — salvando assim mesmo...`,
+      "loading"
+    );
+  } else {
+    mostrarStatusGPS(`✅ GPS ok · ±${precisao}m · Buscando endereço...`, "success");
+  }
+
+  btn.innerHTML = `<span class="spinner"></span><span> Buscando endereço...</span>`;
+
+  // Busca o endereço com timeout de 6s (não bloqueia o salvamento se falhar)
+  const endereco = await buscarEndereco(latitude, longitude);
+  mostrarStatusGPS(`✅ ${endereco}`, "success");
+  btn.innerHTML = `<span class="spinner"></span><span> Gravando...</span>`;
+
+  try {
+    await db.collection('visitas').add({
+      nome,
+      receptividade: receptividadeSelecionada,
+      observacao:    obs,
+      endereco,
+      timestamp:     firebase.firestore.FieldValue.serverTimestamp(),
+      localizacao:   { lat: latitude, lng: longitude, precisao }
+    });
+    showToast("✅ Visita registrada com sucesso!", "success");
+    limparFormulario();
+  } catch(err) {
+    console.error("Firestore error:", err);
+    // Mensagem de erro mais descritiva
+    if (err.code === 'permission-denied') {
+      showToast("❌ Permissão negada pelo Firebase. Verifique as Regras de Segurança.", "error");
+    } else if (err.code === 'unavailable') {
+      showToast("⚠️ Sem conexão — visita salva offline e enviada quando voltar o sinal.", "warning");
+      limparFormulario(); // Firestore offline já salvou localmente
+    } else {
+      showToast(`❌ Erro ao salvar: ${err.message || err.code}`, "error");
+    }
+  }
+  resetarBotao();
 }
 
 function resetarBotao() {
@@ -1116,13 +1158,23 @@ function mostrarStatusGPS(msg, tipo) {
 
 // ═══════════════════════════════════════════════════════════
 //  REVERSE GEOCODING — OpenStreetMap Nominatim
+//  Timeout de 6s: se não responder, usa as coordenadas brutas
 // ═══════════════════════════════════════════════════════════
 async function buscarEndereco(lat, lng) {
   try {
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 6000);
+
     const url  = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=pt-BR&addressdetails=1`;
-    const res  = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    const res  = await fetch(url, {
+      signal:  controller.signal,
+      headers: { 'Accept-Language': 'pt-BR' }
+    });
+    clearTimeout(timeoutId);
+
     const data = await res.json();
     if (!data || data.error) return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
     const a = data.address || {};
     const partes = [
       a.road || a.pedestrian || a.footway || a.path,
@@ -1131,8 +1183,12 @@ async function buscarEndereco(lat, lng) {
       a.city || a.town || a.village || a.municipality,
       a.state_code || a.state
     ].filter(Boolean);
-    return partes.length >= 2 ? partes.join(', ') : (data.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+
+    return partes.length >= 2
+      ? partes.join(', ')
+      : (data.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
   } catch(e) {
+    // Timeout ou sem internet — retorna coordenadas brutas (não bloqueia o salvamento)
     return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   }
 }
