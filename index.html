@@ -236,7 +236,50 @@ textarea.finput{resize:none;}
   display:inline-block;vertical-align:middle;flex-shrink:0;}
 @keyframes rot{to{transform:rotate(360deg);}}
 
-/* ─── FOOTER ─── */
+/* ─── MODAL DE EDIÇÃO ─── */
+#modal-edit{position:fixed;inset:0;z-index:9995;display:none;align-items:flex-end;justify-content:center;}
+#modal-edit.show{display:flex;}
+.modal-backdrop{position:absolute;inset:0;background:rgba(3,13,24,.85);backdrop-filter:blur(4px);}
+.modal-sheet{
+  position:relative;z-index:1;width:100%;max-width:500px;
+  background:var(--card);border-radius:16px 16px 0 0;
+  border-top:3px solid var(--green);border-left:1px solid var(--border);border-right:1px solid var(--border);
+  padding:20px 18px 36px;
+  animation:slideUp .25s ease;
+}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px;}
+.modal-title{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.2rem;
+  letter-spacing:.05em;text-transform:uppercase;color:#fff;margin-bottom:16px;
+  display:flex;align-items:center;gap:8px;}
+.modal-title i{color:var(--green);}
+.modal-fields{display:flex;flex-direction:column;gap:13px;}
+.modal-actions{display:flex;gap:10px;margin-top:18px;}
+.btn-save{flex:1;background:linear-gradient(135deg,#007a3d,var(--green));
+  color:#fff;border:none;border-radius:8px;padding:14px;
+  font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1rem;
+  letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;transition:all .2s;}
+.btn-save:disabled{opacity:.4;cursor:not-allowed;}
+.btn-cancel{background:transparent;border:1.5px solid var(--border);color:var(--muted);
+  border-radius:8px;padding:14px 18px;font-family:'Barlow Condensed',sans-serif;
+  font-weight:700;font-size:1rem;letter-spacing:.06em;text-transform:uppercase;
+  cursor:pointer;transition:all .2s;}
+.btn-cancel:hover{border-color:var(--red);color:#f87171;}
+.btn-del{background:transparent;border:1.5px solid rgba(224,48,48,.4);color:var(--red);
+  border-radius:8px;padding:14px 14px;cursor:pointer;transition:all .2s;font-size:.85rem;}
+.btn-del:hover{background:rgba(224,48,48,.1);border-color:var(--red);}
+/* Botão editar no card */
+.btn-edit-card{
+  display:flex;align-items:center;gap:4px;
+  background:transparent;border:1px solid var(--border);
+  color:var(--muted);border-radius:5px;padding:4px 8px;
+  font-family:'IBM Plex Mono',monospace;font-size:.58rem;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:all .2s;
+  flex-shrink:0;
+}
+.btn-edit-card:hover{border-color:var(--green);color:var(--green);}
+
 .foot{text-align:center;padding:28px 18px 44px;
   font-family:'IBM Plex Mono',monospace;font-size:.58rem;
   letter-spacing:.12em;text-transform:uppercase;color:var(--dim);}
@@ -253,6 +296,62 @@ textarea.finput{resize:none;}
   <p class="ov-title" id="ov-msg">Gerando PDFs...</p>
   <div id="ov-bar"><div id="ov-fill"></div></div>
   <p class="ov-detail" id="ov-detail">Aguarde...</p>
+</div>
+
+<!-- MODAL EDIÇÃO -->
+<div id="modal-edit">
+  <div class="modal-backdrop" onclick="fecharModal()"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">
+      <i data-lucide="pencil" style="width:18px;height:18px;"></i>
+      Editar Registro
+    </div>
+    <input type="hidden" id="edit-id"/>
+    <div class="modal-fields">
+
+      <div>
+        <label class="flbl" for="edit-nome">Nome do Apoiador</label>
+        <input id="edit-nome" class="finput" type="text" maxlength="100" autocomplete="off"/>
+      </div>
+
+      <div>
+        <label class="flbl">Receptividade</label>
+        <div class="rcgrid">
+          <button class="rcbtn" id="edit-rc-a" onclick="editRC(this,'Apoiador')">
+            <span class="em">👍</span><span class="lb" style="color:#4ade80;">Apoiador</span>
+          </button>
+          <button class="rcbtn" id="edit-rc-i" onclick="editRC(this,'Indeciso')">
+            <span class="em">🤔</span><span class="lb" style="color:var(--gold);">Indeciso</span>
+          </button>
+          <button class="rcbtn" id="edit-rc-r" onclick="editRC(this,'Rejeição')">
+            <span class="em">👎</span><span class="lb" style="color:#f87171;">Rejeição</span>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="flbl" for="edit-end">Endereço</label>
+        <input id="edit-end" class="finput" type="text" maxlength="200" autocomplete="off"/>
+      </div>
+
+      <div>
+        <label class="flbl" for="edit-obs">Observação <span style="color:var(--dim);font-weight:400;">(opcional)</span></label>
+        <textarea id="edit-obs" class="finput" rows="2" maxlength="300"></textarea>
+      </div>
+
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-del" onclick="excluirRegistro()" title="Excluir este registro">
+        <i data-lucide="trash-2" style="width:15px;height:15px;"></i>
+      </button>
+      <button class="btn-save" id="btn-save-edit" onclick="salvarEdicao()">
+        <i data-lucide="check" style="width:17px;height:17px;"></i>
+        Salvar
+      </button>
+    </div>
+  </div>
 </div>
 
 <div class="wrap">
@@ -672,7 +771,12 @@ function criarCard(v) {
           <span style="font-size:1.2rem;flex-shrink:0;">${cfg.em}</span>
           <span class="vname">${xss(v.nome)}</span>
         </div>
-        <span class="vbadge ${cfg.badge}">${cfg.lbl}</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          <button class="btn-edit-card" onclick="abrirModal('${v.id}')">
+            <i data-lucide="pencil" style="width:10px;height:10px;"></i>Editar
+          </button>
+          <span class="vbadge ${cfg.badge}">${cfg.lbl}</span>
+        </div>
       </div>
       <div class="vmeta">
         <span style="display:flex;align-items:center;gap:4px;">
@@ -693,6 +797,103 @@ function criarCard(v) {
     </div>`;
   return div;
 }
+
+// ════════════════════════════════════════
+//  EDIÇÃO DE REGISTROS
+// ════════════════════════════════════════
+let editRC_val = null;
+
+function abrirModal(id) {
+  const v = cache.find(x => x.id === id);
+  if (!v) { toast('Registro não encontrado', 'e'); return; }
+
+  // Preenche os campos
+  document.getElementById('edit-id').value   = id;
+  document.getElementById('edit-nome').value = v.nome || '';
+  document.getElementById('edit-end').value  = v.endereco || '';
+  document.getElementById('edit-obs').value  = v.observacao || '';
+
+  // Receptividade
+  editRC_val = v.receptividade || null;
+  document.querySelectorAll('#modal-edit .rcbtn')
+    .forEach(b => b.classList.remove('sel-a','sel-i','sel-r'));
+  const rcMap = { Apoiador:'edit-rc-a', Indeciso:'edit-rc-i', 'Rejeição':'edit-rc-r' };
+  const clsMap = { Apoiador:'sel-a', Indeciso:'sel-i', 'Rejeição':'sel-r' };
+  if (v.receptividade && rcMap[v.receptividade]) {
+    document.getElementById(rcMap[v.receptividade]).classList.add(clsMap[v.receptividade]);
+  }
+
+  document.getElementById('modal-edit').classList.add('show');
+  lucide.createIcons();
+  document.getElementById('edit-nome').focus();
+}
+
+function fecharModal() {
+  document.getElementById('modal-edit').classList.remove('show');
+  editRC_val = null;
+}
+
+function editRC(btn, valor) {
+  document.querySelectorAll('#modal-edit .rcbtn')
+    .forEach(b => b.classList.remove('sel-a','sel-i','sel-r'));
+  const cls = { Apoiador:'sel-a', Indeciso:'sel-i', 'Rejeição':'sel-r' }[valor];
+  btn.classList.add(cls);
+  editRC_val = valor;
+}
+
+async function salvarEdicao() {
+  const id   = document.getElementById('edit-id').value;
+  const nome = document.getElementById('edit-nome').value.trim();
+  const end  = document.getElementById('edit-end').value.trim();
+  const obs  = document.getElementById('edit-obs').value.trim();
+
+  if (!nome)       { toast('⚠️ Informe o nome', 'w'); return; }
+  if (!editRC_val) { toast('⚠️ Selecione a receptividade', 'w'); return; }
+
+  const btn = document.getElementById('btn-save-edit');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spin"></span><span> Salvando...</span>`;
+
+  try {
+    await db.collection('visitas').doc(id).update({
+      nome,
+      receptividade: editRC_val,
+      endereco:      end,
+      observacao:    obs
+    });
+    toast('✅ Registro atualizado!', 's');
+    fecharModal();
+  } catch(err) {
+    console.error('Update error:', err);
+    toast('❌ Erro ao salvar: ' + (err.message || err.code), 'e');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `<i data-lucide="check" style="width:17px;height:17px;"></i> Salvar`;
+  lucide.createIcons();
+}
+
+async function excluirRegistro() {
+  const id = document.getElementById('edit-id').value;
+  const nome = document.getElementById('edit-nome').value.trim();
+
+  // Confirmação simples
+  if (!confirm(`Excluir o registro de "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+
+  try {
+    await db.collection('visitas').doc(id).delete();
+    toast('🗑️ Registro excluído', 'i');
+    fecharModal();
+  } catch(err) {
+    console.error('Delete error:', err);
+    toast('❌ Erro ao excluir: ' + (err.message || err.code), 'e');
+  }
+}
+
+// Fecha o modal ao pressionar ESC
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') fecharModal();
+});
 
 // ════════════════════════════════════════
 //  EXPORTAR CSV
