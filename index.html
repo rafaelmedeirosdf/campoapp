@@ -856,9 +856,11 @@ function construirPDF(ap) {
     startY: y,
     head: [['#','Data / Hora','Endereço','Observação','Precisão']],
     body: ap.visitas.map((v,i) => {
-      const loc = v.localizacao || {};
+      const loc  = v.localizacao || {};
       const hora = v.timestamp?.toDate ? v.timestamp.toDate().toLocaleString('pt-BR') : '—';
-      const end  = v.endereco || `${(loc.lat||0).toFixed(5)}, ${(loc.lng||0).toFixed(5)}`;
+      const end  = (v.endereco && !v.endereco.match(/^-?\d+\.\d+,/))
+                    ? v.endereco
+                    : (v.endereco || 'Endereço não registrado');
       return [`#${i+1}`, hora, end, v.observacao||'—', loc.precisao?`±${loc.precisao}m`:'—'];
     }),
     margin: {left:ML, right:MR},
@@ -879,7 +881,10 @@ function construirPDF(ap) {
     const loc  = v.localizacao || {};
     const lat  = loc.lat || 0, lng = loc.lng || 0, prec = loc.precisao || 0;
     const hora = v.timestamp?.toDate ? v.timestamp.toDate().toLocaleString('pt-BR') : '—';
-    const end  = v.endereco || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    // Endereço: usa o campo salvo; coordenadas só aparecem no mini-mapa
+    const end  = (v.endereco && !v.endereco.match(/^-?\d+\.\d+,/))
+                  ? v.endereco
+                  : (v.endereco || 'Endereço não registrado');
     const obs  = v.observacao || '';
     const CH   = obs ? 64 : 52;
     const MW   = 70, IX = ML+MW+5, IW = CW-MW-5;
