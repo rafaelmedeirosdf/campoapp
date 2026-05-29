@@ -974,7 +974,8 @@ async function gerarPDFs() {
     ovDet.textContent   = apoiador.nome;
     await sleep(20);
     try {
-      construirPDF(apoiador).save(`apoiador_${slug(apoiador.nome)}.pdf`);
+      const dataHoje = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+      construirPDF(apoiador).save(`apoiador_${slug(apoiador.nome)}_${dataHoje}.pdf`);
       ok++;
       await sleep(350);
     } catch(e) {
@@ -1052,23 +1053,40 @@ function construirPDF(ap) {
   doc.text('HISTÓRICO DE VISITAS', ML, y+3);
   y += 8;
 
-  // Tabela
+  // Tabela — agrupada por data
+  const rowsPorData = [];
+  let dataAtual = '';
+  ap.visitas.forEach((v, i) => {
+    const loc  = v.localizacao || {};
+    const hora = v.timestamp?.toDate ? v.timestamp.toDate().toLocaleString('pt-BR') : '—';
+    const data = v.timestamp?.toDate
+      ? v.timestamp.toDate().toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'})
+      : '—';
+    const end  = (v.endereco && !v.endereco.match(/^-?\d+\.\d+,/))
+                  ? v.endereco
+                  : (v.endereco || 'Endereço não registrado');
+
+    // Linha separadora de data
+    if (data !== dataAtual) {
+      dataAtual = data;
+      rowsPorData.push({ tipo: 'data', label: data.charAt(0).toUpperCase() + data.slice(1) });
+    }
+    rowsPorData.push({ tipo: 'visita', num: i+1, hora, end, obs: v.observacao||'—', prec: loc.precisao ? `±${loc.precisao}m` : '—' });
+  });
+
   doc.autoTable({
     startY: y,
-    head: [['#','Data / Hora','Endereço','Observação','Precisão']],
-    body: ap.visitas.map((v,i) => {
-      const loc  = v.localizacao || {};
-      const hora = v.timestamp?.toDate ? v.timestamp.toDate().toLocaleString('pt-BR') : '—';
-      const end  = (v.endereco && !v.endereco.match(/^-?\d+\.\d+,/))
-                    ? v.endereco
-                    : (v.endereco || 'Endereço não registrado');
-      return [`#${i+1}`, hora, end, v.observacao||'—', loc.precisao?`±${loc.precisao}m`:'—'];
-    }),
+    head: [['#','Horário','Endereço','Observação','Precisão']],
+    body: rowsPorData.map(r =>
+      r.tipo === 'data'
+        ? [{ content: r.label, colSpan: 5, styles: { fontStyle:'bold', fillColor:[0,100,50], textColor:[187,247,208], fontSize:7.5, cellPadding:3 } }]
+        : [`#${r.num}`, r.hora.split(', ')[1] || r.hora, r.end, r.obs, r.prec]
+    ),
     margin: {left:ML, right:MR},
     styles: { fontSize:7.5, cellPadding:2.5, font:'helvetica', textColor:[220,235,248], fillColor:[5,16,30], lineColor:[26,55,82], lineWidth:.2, overflow:'linebreak' },
     headStyles: { fillColor:[0,166,81], textColor:[255,255,255], fontStyle:'bold', fontSize:7.5, halign:'center' },
     alternateRowStyles: { fillColor:[11,29,48] },
-    columnStyles: { 0:{halign:'center',cellWidth:8}, 1:{cellWidth:36}, 2:{cellWidth:72}, 3:{cellWidth:38}, 4:{halign:'center',cellWidth:16} }
+    columnStyles: { 0:{halign:'center',cellWidth:8}, 1:{cellWidth:28}, 2:{cellWidth:80}, 3:{cellWidth:44}, 4:{halign:'center',cellWidth:16} }
   });
 
   y = doc.lastAutoTable.finalY + 10;
