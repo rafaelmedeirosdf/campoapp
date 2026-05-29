@@ -1207,30 +1207,61 @@ function showToast(msg, tipo = 'info') {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  SNAPSHOT — VISITAS DO DIA
+//  SNAPSHOT — sem índice composto (filtro de data no cliente)
 // ═══════════════════════════════════════════════════════════
 function iniciarSnapshotDoDia() {
-  const hoje = new Date();
-  hoje.setHours(0,0,0,0);
+  mostrarStatusConexao('conectando');
 
   db.collection('visitas')
-    .where('timestamp','>=',hoje)
-    .orderBy('timestamp','desc')
+    .orderBy('timestamp', 'desc')
+    .limit(200)
     .onSnapshot(
       snap => {
+        mostrarStatusConexao('ok');
         visitasCache = [];
         snap.forEach(doc => visitasCache.push({ id: doc.id, ...doc.data() }));
-        renderizarVisitas(visitasCache);
+
+        // Filtra hoje no cliente (evita índice composto)
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        const visitasHoje = visitasCache.filter(v => {
+          if (!v.timestamp?.toDate) return true; // sem timestamp ainda (offline) → exibe
+          return v.timestamp.toDate() >= hoje;
+        });
+
+        renderizarVisitas(visitasHoje);
       },
-      () => {
-        db.collection('visitas').orderBy('timestamp','desc').limit(50)
-          .onSnapshot(snap => {
-            visitasCache = [];
-            snap.forEach(doc => visitasCache.push({ id: doc.id, ...doc.data() }));
-            renderizarVisitas(visitasCache);
-          });
+      err => {
+        mostrarStatusConexao('erro', err.message);
+        console.error('Snapshot error:', err);
       }
     );
+}
+
+// Indicador de status de conexão com Firebase
+function mostrarStatusConexao(estado, detalhe) {
+  let el = document.getElementById('fbStatus');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'fbStatus';
+    el.style.cssText = `
+      position:fixed; top:0; left:0; right:0; z-index:9997;
+      font-family:'IBM Plex Mono',monospace; font-size:0.65rem;
+      letter-spacing:0.08em; text-align:center;
+      padding:5px 12px; transition:all 0.3s;
+    `;
+    document.body.appendChild(el);
+  }
+  if (estado === 'ok') {
+    el.style.display = 'none';
+  } else if (estado === 'conectando') {
+    el.style.cssText += 'background:#0e2338;color:#4a7090;display:block;';
+    el.textContent = '⏳ CONECTANDO AO FIREBASE...';
+  } else if (estado === 'erro') {
+    el.style.cssText += 'background:#1f0a0a;color:#fca5a5;border-bottom:2px solid #e53030;display:block;';
+    el.textContent = `❌ FIREBASE: ${detalhe || 'verifique as Regras de Segurança no console.firebase.google.com'}`;
+    el.style.padding = '8px 12px';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1382,10 +1413,18 @@ function agruparApoiadores(visitas) {
 //  GERAR PDF — APOIADORES
 // ═══════════════════════════════════════════════════════════
 async function gerarPDFApoiadores() {
+  if (visitasCache.length === 0) {
+    showToast("Nenhuma visita carregada. Verifique a conexão com o Firebase.", "warning");
+    return;
+  }
+
   const apoiadores = agruparApoiadores(visitasCache);
   const nomes      = Object.keys(apoiadores);
 
-  if(nomes.length === 0){ showToast("Nenhum apoiador registrado ainda","warning"); return; }
+  if (nomes.length === 0) {
+    showToast("Nenhum apoiador encontrado nas visitas carregadas.", "warning");
+    return;
+  }
 
   const btn = document.getElementById('btnGerarPDF');
   btn.disabled = true;
@@ -1399,30 +1438,38 @@ async function gerarPDFApoiadores() {
 
   await sleep(80);
 
-  for(let i = 0; i < nomes.length; i++){
+  let gerados = 0, erros = 0;
+
+  for (let i = 0; i < nomes.length; i++) {
     const apoiador = apoiadores[nomes[i]];
-    barEl.style.width = Math.round((i/nomes.length)*100)+'%';
-    msgEl.textContent = `Gerando PDF ${i+1} de ${nomes.length}`;
+    barEl.style.width   = Math.round((i / nomes.length) * 100) + '%';
+    msgEl.textContent   = `Gerando PDF ${i + 1} de ${nomes.length}`;
     detailEl.textContent = apoiador.nomeExibicao;
     await sleep(30);
 
     try {
       const pdf = construirPDFApoiador(apoiador);
       pdf.save(`apoiador_${sanitizarNomeArquivo(apoiador.nomeExibicao)}.pdf`);
+      gerados++;
       await sleep(400);
-    } catch(err) { console.error(err); }
+    } catch (err) {
+      erros++;
+      console.error(`Erro no PDF de ${apoiador.nomeExibicao}:`, err);
+      detailEl.textContent = `❌ Erro: ${err.message}`;
+      await sleep(800);
+    }
   }
 
-  barEl.style.width = '100%';
-  msgEl.textContent = '✅ PDFs gerados com sucesso!';
-  detailEl.textContent = `${nomes.length} arquivo(s) baixado(s)`;
-  await sleep(1200);
+  barEl.style.width   = '100%';
+  msgEl.textContent   = erros === 0 ? `✅ ${gerados} PDF(s) gerado(s)!` : `⚠️ ${gerados} OK · ${erros} com erro`;
+  detailEl.textContent = erros === 0 ? 'Downloads iniciados' : 'Abra o console (F12) para ver o erro';
+  await sleep(1800);
 
   overlay.classList.add('hidden');
   btn.disabled = false;
   btn.innerHTML = `<i data-lucide="file-text" style="width:20px;height:20px;"></i> Gerar PDFs dos Apoiadores`;
   lucide.createIcons();
-  showToast(`✅ ${nomes.length} PDF(s) gerado(s)!`,"success");
+  if (gerados > 0) showToast(`✅ ${gerados} PDF(s) gerado(s)!`, "success");
 }
 
 // ─────────────────────────────────────────────────────────
