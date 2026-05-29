@@ -1,964 +1,374 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Campo 2026 — Rastreio de Campanha</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Campo 2026</title>
+<meta name="theme-color" content="#030d18"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Campo 2026"/>
 
-  <!-- ══ PWA — salvar na tela inicial ══ -->
-  <meta name="theme-color" content="#05101e" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Campo 2026" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="application-name" content="Campo 2026" />
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Lucide -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<!-- Firebase compat v10 -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<!-- Fontes -->
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 
-  <!-- Ícone SVG (favicon moderno — Chrome, Firefox, Edge) -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='110' fill='%2305101e'/%3E%3Crect width='512' height='512' rx='110' fill='none' stroke='%2300a651' stroke-width='18'/%3E%3Cpath d='M0 400 L112 512 L0 512Z' fill='%23f0b42918'/%3E%3Cpath d='M400 0 L512 0 L512 112Z' fill='%23f0b42918'/%3E%3Crect x='0' y='0' width='512' height='7' rx='7' fill='%2300a651'/%3E%3Crect x='0' y='7' width='512' height='4' fill='%23f0b429'/%3E%3Ccircle cx='256' cy='220' r='108' fill='%2300a651'/%3E%3Ccircle cx='256' cy='220' r='108' fill='none' stroke='%23007a3d' stroke-width='10'/%3E%3Cpolygon points='256,148 272,196 322,196 283,225 297,273 256,244 215,273 229,225 190,196 240,196' fill='%23f0b429'/%3E%3Cpath d='M256 316 C256 316 200 380 200 410 C200 440 225 460 256 460 C287 460 312 440 312 410 C312 380 256 316 256 316Z' fill='%2300a651'/%3E%3Ccircle cx='256' cy='408' r='14' fill='%2305101e'/%3E%3Ctext x='256' y='500' font-family='Arial Black,sans-serif' font-weight='900' font-size='58' fill='%23f0b429' text-anchor='middle' letter-spacing='2'%3E2026%3C/text%3E%3C/svg%3E" />
+<style>
+:root {
+  --bg:     #030d18;
+  --card:   #091726;
+  --border: #152d45;
+  --green:  #00a651;
+  --green2: #00cc66;
+  --gold:   #f0b429;
+  --red:    #e03030;
+  --text:   #d8eeff;
+  --muted:  #4a7090;
+  --dim:    #1e3a52;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100dvh;}
 
-  <!-- Ícone Apple (gerado via canvas no boot — veja JS) -->
-  <link rel="apple-touch-icon" id="appleIcon" href="" />
+/* Textura de fundo */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:radial-gradient(rgba(0,166,81,.06) 1px,transparent 1px);
+  background-size:28px 28px;pointer-events:none;z-index:0;
+}
+.wrap{position:relative;z-index:1;max-width:500px;margin:0 auto;padding-bottom:60px;}
 
-  <!-- Manifest PWA (gerado inline via JS) -->
-  <link rel="manifest" id="pwaManifest" href="" />
+/* ─── HEADER ─── */
+.hdr{
+  background:linear-gradient(160deg,#071525,#0a1e35);
+  border-bottom:3px solid var(--green);
+  padding:28px 18px 20px;
+  position:sticky;top:0;z-index:50;
+}
+.hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--green),var(--gold),var(--green));}
+.hdr-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:16px;}
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+.badge-live{display:inline-flex;align-items:center;gap:6px;
+  background:rgba(0,166,81,.12);border:1.5px solid rgba(0,166,81,.35);
+  border-radius:5px;padding:4px 10px;margin-bottom:10px;}
+.dot-live{width:7px;height:7px;background:var(--green);border-radius:50%;
+  animation:blink 1.8s ease-in-out infinite;}
+@keyframes blink{0%,100%{box-shadow:0 0 0 0 rgba(0,166,81,.7);}50%{box-shadow:0 0 0 6px rgba(0,166,81,0);}}
+.badge-live span{font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--green);letter-spacing:.1em;}
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=IBM+Plex+Mono:wght@400;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+.hdr-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:2.6rem;
+  line-height:.92;text-transform:uppercase;color:#fff;}
+.hdr-title em{color:var(--gold);font-style:normal;display:block;}
 
-  <style>
-    :root {
-      --bg:        #05101e;
-      --card:      #0b1d30;
-      --card2:     #0e2338;
-      --border:    #1a3a55;
-      --green:     #00a651;
-      --green2:    #00cc66;
-      --gold:      #f0b429;
-      --gold2:     #ffd166;
-      --red:       #e53030;
-      --blue:      #1a6fc4;
-      --text:      #ddeeff;
-      --muted:     #4a7090;
-      --dim:       #2a4a65;
-    }
+.hdr-actions{display:flex;align-items:center;gap:8px;}
+.btn-csv{display:flex;align-items:center;gap:5px;background:transparent;
+  border:1.5px solid var(--border);color:var(--muted);
+  font-family:'IBM Plex Mono',monospace;font-size:.65rem;font-weight:700;
+  letter-spacing:.08em;padding:7px 11px;border-radius:6px;cursor:pointer;transition:all .2s;}
+.btn-csv:hover{border-color:var(--green);color:var(--green);}
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+/* ─── STATUS FIREBASE ─── */
+#fb-status{
+  display:none;margin:12px 18px 0;padding:8px 12px;border-radius:7px;
+  font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.06em;
+  border:1.5px solid;
+}
+#fb-status.ok{display:none;}
+#fb-status.connecting{display:flex;align-items:center;gap:6px;
+  background:rgba(0,166,81,.06);border-color:rgba(0,166,81,.3);color:var(--green);}
+#fb-status.error{display:flex;align-items:center;gap:6px;
+  background:rgba(224,48,48,.08);border-color:rgba(224,48,48,.5);color:#f87171;}
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Barlow', sans-serif;
-      min-height: 100dvh;
-      overflow-x: hidden;
-    }
+/* ─── PLACAR ─── */
+.scoreboard{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px;}
+.sc{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;
+  padding:10px 6px 8px;text-align:center;position:relative;overflow:hidden;}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.sc.g::before{background:var(--green);}
+.sc.y::before{background:var(--gold);}
+.sc.r::before{background:var(--red);}
+.sc-num{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:2rem;line-height:1;}
+.sc-num.g{color:var(--green2);}
+.sc-num.y{color:var(--gold);}
+.sc-num.r{color:#f87171;}
+.sc-lbl{font-family:'IBM Plex Mono',monospace;font-size:.56rem;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);margin-top:2px;}
 
-    /* ── Fundo com pontilhado sutil ── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: radial-gradient(circle, rgba(0,166,81,0.07) 1px, transparent 1px);
-      background-size: 28px 28px;
-      pointer-events: none;
-      z-index: 0;
-    }
+/* ─── SEÇÃO ─── */
+.sec{padding:18px 18px 0;}
+.sec-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px;
+  font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);}
+.sec-hdr::after{content:'';flex:1;height:1px;background:var(--border);}
 
-    .app-shell { position: relative; z-index: 1; }
+/* ─── FORM ─── */
+.form-card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:18px;display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden;}
+.form-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;
+  background:linear-gradient(180deg,var(--green),var(--gold));}
 
-    /* ════════════════════════════════
-       HEADER HERO — CLIMA DE CAMPANHA
-    ════════════════════════════════ */
-    .campaign-header {
-      position: relative;
-      background: linear-gradient(160deg, #061524 0%, #08203a 50%, #061c32 100%);
-      border-bottom: 3px solid var(--green);
-      overflow: hidden;
-      padding: 0;
-    }
+.flbl{display:block;font-family:'IBM Plex Mono',monospace;font-size:.62rem;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.finput{width:100%;background:rgba(0,0,0,.4);border:1.5px solid var(--border);
+  color:var(--text);border-radius:8px;padding:13px 14px;
+  font-family:'Barlow',sans-serif;font-size:.95rem;font-weight:600;transition:all .2s;}
+.finput:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(0,166,81,.15);}
+.finput::placeholder{color:var(--dim);font-weight:400;}
+textarea.finput{resize:none;}
 
-    /* Listras diagonais de fundo (bandeira/cartaz) */
-    .campaign-header::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: repeating-linear-gradient(
-        -55deg,
-        transparent,
-        transparent 28px,
-        rgba(0,166,81,0.04) 28px,
-        rgba(0,166,81,0.04) 30px
-      );
-      pointer-events: none;
-    }
+/* ─── BOTÕES RECEPTIVIDADE ─── */
+.rcgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.rcbtn{background:rgba(0,0,0,.35);border:2px solid var(--border);border-radius:10px;
+  padding:14px 6px 12px;cursor:pointer;transition:all .18s;
+  display:flex;flex-direction:column;align-items:center;gap:5px;}
+.rcbtn:active{transform:scale(.95);}
+.rcbtn .em{font-size:1.4rem;line-height:1;}
+.rcbtn .lb{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:.78rem;
+  letter-spacing:.05em;text-transform:uppercase;}
+.rcbtn.sel-a{border-color:var(--green);background:rgba(0,166,81,.14);box-shadow:0 0 14px rgba(0,166,81,.2);}
+.rcbtn.sel-a .lb{color:var(--green2);}
+.rcbtn.sel-i{border-color:var(--gold);background:rgba(240,180,41,.14);box-shadow:0 0 14px rgba(240,180,41,.2);}
+.rcbtn.sel-i .lb{color:var(--gold);}
+.rcbtn.sel-r{border-color:var(--red);background:rgba(224,48,48,.14);box-shadow:0 0 14px rgba(224,48,48,.2);}
+.rcbtn.sel-r .lb{color:#f87171;}
 
-    /* Faixa dourada inferior */
-    .campaign-header::after {
-      content: '';
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--green), var(--gold), var(--green));
-    }
+/* ─── STATUS GPS ─── */
+.gps-box{display:none;align-items:flex-start;gap:8px;padding:10px 12px;
+  border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,.25);
+  font-family:'IBM Plex Mono',monospace;font-size:.66rem;line-height:1.5;color:var(--muted);}
+.gps-box.vis{display:flex;}
+.gps-box.ok{border-color:rgba(0,166,81,.5);background:rgba(0,166,81,.07);color:#6ee7a8;}
+.gps-box.err{border-color:rgba(224,48,48,.5);background:rgba(224,48,48,.07);color:#fca5a5;}
 
-    .header-inner {
-      position: relative;
-      z-index: 2;
-      padding: 32px 20px 24px;
-    }
+/* ─── BOTÃO REGISTRAR ─── */
+.btn-reg{width:100%;background:linear-gradient(135deg,#007a3d,var(--green));
+  color:#fff;border:none;border-radius:10px;padding:16px;
+  font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.1rem;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all .2s;box-shadow:0 4px 18px rgba(0,166,81,.3);}
+.btn-reg:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
+.btn-reg:not(:disabled):active{transform:scale(.98);}
 
-    /* Logo / Selo */
-    .campaign-seal {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      background: rgba(0,166,81,0.12);
-      border: 1.5px solid rgba(0,166,81,0.35);
-      border-radius: 6px;
-      padding: 5px 12px 5px 8px;
-      margin-bottom: 16px;
-    }
-    .seal-dot {
-      width: 8px; height: 8px;
-      background: var(--green);
-      border-radius: 50%;
-      animation: pulse-green 2s ease-in-out infinite;
-    }
-    @keyframes pulse-green {
-      0%,100% { box-shadow: 0 0 0 0 rgba(0,166,81,0.6); }
-      50%      { box-shadow: 0 0 0 6px rgba(0,166,81,0); }
-    }
-    .seal-text {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.65rem;
-      letter-spacing: 0.12em;
-      color: var(--green);
-      font-weight: 700;
-      text-transform: uppercase;
-    }
+/* ─── BOTÃO PDF ─── */
+.btn-pdf{width:100%;background:linear-gradient(135deg,#b8860b,var(--gold));
+  color:#04100e;border:none;border-radius:10px;padding:14px;
+  font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.05rem;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all .2s;box-shadow:0 4px 18px rgba(240,180,41,.25);}
+.btn-pdf:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
+.btn-pdf:not(:disabled):active{transform:scale(.98);}
 
-    /* Título principal */
-    .campaign-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 900;
-      font-size: clamp(2.6rem, 9vw, 3.8rem);
-      line-height: 0.92;
-      text-transform: uppercase;
-      letter-spacing: -0.01em;
-      color: #ffffff;
-    }
-    .campaign-title .year-highlight {
-      color: var(--gold);
-      display: inline-block;
-      position: relative;
-    }
-    .campaign-title .year-highlight::after {
-      content: '';
-      position: absolute;
-      bottom: 2px; left: 0; right: 0;
-      height: 3px;
-      background: var(--gold);
-      border-radius: 2px;
-    }
+/* ─── PDF INFO ─── */
+.pdf-card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:18px;position:relative;overflow:hidden;}
+.pdf-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;
+  background:linear-gradient(180deg,var(--gold),#ffd166);}
+.pdf-desc{font-size:.85rem;color:var(--muted);line-height:1.5;margin-bottom:14px;padding-left:4px;}
+#pdf-count{font-family:'IBM Plex Mono',monospace;font-size:.62rem;color:var(--muted);
+  text-align:center;margin-top:8px;display:none;}
 
-    .campaign-sub {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.7rem;
-      color: var(--muted);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-top: 8px;
-    }
+/* ─── VISIT CARDS ─── */
+#lista{display:flex;flex-direction:column;gap:10px;}
+.vcard{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;position:relative;animation:fadeUp .25s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.vbar{position:absolute;top:0;left:0;width:4px;height:100%;}
+.vbar.g{background:linear-gradient(180deg,var(--green),var(--green2));}
+.vbar.y{background:linear-gradient(180deg,var(--gold),#ffd166);}
+.vbar.r{background:linear-gradient(180deg,var(--red),#f87171);}
+.vbody{padding:12px 14px 12px 18px;}
+.vtop{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:7px;}
+.vname{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.08rem;color:#fff;}
+.vbadge{font-family:'IBM Plex Mono',monospace;font-size:.56rem;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px;
+  flex-shrink:0;border:1px solid;}
+.vb-g{background:rgba(0,166,81,.14);color:var(--green2);border-color:rgba(0,166,81,.4);}
+.vb-y{background:rgba(240,180,41,.14);color:var(--gold);border-color:rgba(240,180,41,.4);}
+.vb-r{background:rgba(224,48,48,.14);color:#f87171;border-color:rgba(224,48,48,.4);}
+.vmeta{display:flex;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;
+  font-size:.63rem;color:var(--muted);margin-bottom:6px;}
+.vaddr{display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#7aabcc;line-height:1.4;margin-bottom:4px;}
+.vobs{display:flex;align-items:flex-start;gap:6px;font-size:.76rem;color:var(--gold);
+  font-style:italic;line-height:1.4;opacity:.85;}
 
-    /* Barra de ações do header */
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px solid rgba(255,255,255,0.07);
-    }
+/* ─── EMPTY ─── */
+.empty{text-align:center;padding:40px 20px;color:var(--dim);}
+.empty p{font-family:'Barlow Condensed',sans-serif;font-size:.95rem;letter-spacing:.05em;
+  text-transform:uppercase;margin-top:10px;}
 
-    /* Badge offline */
-    .offline-badge {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      background: rgba(240,180,41,0.12);
-      border: 1px solid rgba(240,180,41,0.4);
-      color: var(--gold);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.6rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 4px 8px;
-      border-radius: 4px;
-    }
+/* ─── TOAST ─── */
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(22px);
+  opacity:0;transition:all .3s;z-index:9999;pointer-events:none;
+  min-width:250px;max-width:88vw;text-align:center;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.98rem;
+  letter-spacing:.04em;padding:11px 18px;border-radius:8px;border:1.5px solid;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.s{background:#041a0d;border-color:var(--green);color:#6ee7a8;}
+#toast.e{background:#180707;border-color:var(--red);color:#fca5a5;}
+#toast.w{background:#18120a;border-color:var(--gold);color:var(--gold);}
+#toast.i{background:var(--card);border-color:var(--border);color:var(--text);}
 
-    /* Botão CSV */
-    .btn-csv {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: transparent;
-      border: 1.5px solid var(--border);
-      color: var(--muted);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      padding: 7px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-transform: uppercase;
-    }
-    .btn-csv:hover { border-color: var(--green); color: var(--green); }
+/* ─── PDF OVERLAY ─── */
+#overlay{position:fixed;inset:0;background:rgba(3,13,24,.93);backdrop-filter:blur(6px);
+  z-index:9998;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:14px;}
+#overlay.show{display:flex;}
+.ov-title{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.15rem;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--text);}
+.ov-detail{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);}
+#ov-bar{width:220px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+#ov-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));
+  border-radius:2px;transition:width .3s;width:0%;}
 
-    /* ════════════════════════════════
-       PLACAR DE ESTATÍSTICAS
-    ════════════════════════════════ */
-    .scoreboard {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-top: 20px;
-    }
-    .score-card {
-      background: rgba(0,0,0,0.3);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 8px 8px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .score-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-    }
-    .score-card.s-green::before { background: var(--green); }
-    .score-card.s-gold::before  { background: var(--gold); }
-    .score-card.s-red::before   { background: var(--red); }
+/* ─── SPINNER ─── */
+.spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.2);
+  border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite;
+  display:inline-block;vertical-align:middle;flex-shrink:0;}
+@keyframes rot{to{transform:rotate(360deg);}}
 
-    .score-num {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 900;
-      font-size: 2rem;
-      line-height: 1;
-    }
-    .score-num.c-green { color: var(--green2); }
-    .score-num.c-gold  { color: var(--gold2); }
-    .score-num.c-red   { color: #f87171; }
-
-    .score-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.58rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    /* ════════════════════════════════
-       SEÇÃO LABELS
-    ════════════════════════════════ */
-    .sec-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.62rem;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 10px;
-    }
-    .sec-label::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    /* ════════════════════════════════
-       FORM CARD
-    ════════════════════════════════ */
-    .form-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-      position: relative;
-      overflow: hidden;
-    }
-    .form-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0;
-      width: 4px; height: 100%;
-      background: linear-gradient(180deg, var(--green), var(--gold));
-    }
-
-    .field-label {
-      display: block;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.65rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 8px;
-      font-weight: 700;
-    }
-
-    .field-input {
-      width: 100%;
-      background: rgba(0,0,0,0.35);
-      border: 1.5px solid var(--border);
-      color: var(--text);
-      border-radius: 8px;
-      padding: 13px 16px;
-      font-family: 'Barlow', sans-serif;
-      font-size: 1rem;
-      font-weight: 600;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .field-input:focus {
-      outline: none;
-      border-color: var(--green);
-      box-shadow: 0 0 0 3px rgba(0,166,81,0.15);
-    }
-    .field-input::placeholder { color: var(--dim); font-weight: 400; }
-
-    textarea.field-input {
-      resize: none;
-      font-size: 0.95rem;
-    }
-
-    /* ════════════════════════════════
-       BOTÕES DE RECEPTIVIDADE
-    ════════════════════════════════ */
-    .recep-grid {
-      display: grid;
-      grid-template-columns: repeat(3,1fr);
-      gap: 8px;
-    }
-    .recep-btn {
-      background: rgba(0,0,0,0.3);
-      border: 2px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 8px 12px;
-      cursor: pointer;
-      transition: all 0.18s ease;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      position: relative;
-      overflow: hidden;
-    }
-    .recep-btn:active { transform: scale(0.95); }
-
-    .recep-btn .r-emoji { font-size: 1.5rem; line-height: 1; }
-    .recep-btn .r-label {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800;
-      font-size: 0.8rem;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
-
-    /* Estados selecionados */
-    .recep-btn.selected-apoiador {
-      border-color: var(--green);
-      background: rgba(0,166,81,0.15);
-      box-shadow: 0 0 16px rgba(0,166,81,0.2), inset 0 0 12px rgba(0,166,81,0.08);
-    }
-    .recep-btn.selected-apoiador .r-label { color: var(--green2); }
-
-    .recep-btn.selected-indeciso {
-      border-color: var(--gold);
-      background: rgba(240,180,41,0.15);
-      box-shadow: 0 0 16px rgba(240,180,41,0.2), inset 0 0 12px rgba(240,180,41,0.08);
-    }
-    .recep-btn.selected-indeciso .r-label { color: var(--gold2); }
-
-    .recep-btn.selected-rejeicao {
-      border-color: var(--red);
-      background: rgba(229,48,48,0.15);
-      box-shadow: 0 0 16px rgba(229,48,48,0.2), inset 0 0 12px rgba(229,48,48,0.08);
-    }
-    .recep-btn.selected-rejeicao .r-label { color: #f87171; }
-
-    /* ════════════════════════════════
-       GPS STATUS
-    ════════════════════════════════ */
-    .gps-status {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: rgba(0,0,0,0.25);
-    }
-    .gps-status.gps-ok     { border-color: rgba(0,166,81,0.5); background: rgba(0,166,81,0.08); color: #6ee7a8; }
-    .gps-status.gps-err    { border-color: rgba(229,48,48,0.5); background: rgba(229,48,48,0.08); color: #fca5a5; }
-    .gps-status.gps-wait   { border-color: var(--border); color: var(--muted); }
-    .gps-status-text {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.68rem;
-      line-height: 1.5;
-      flex: 1;
-    }
-
-    /* ════════════════════════════════
-       BOTÃO PRINCIPAL
-    ════════════════════════════════ */
-    .btn-registrar {
-      width: 100%;
-      background: linear-gradient(135deg, #007a3d 0%, var(--green) 50%, #00cc66 100%);
-      color: #ffffff;
-      border: none;
-      border-radius: 10px;
-      padding: 16px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800;
-      font-size: 1.15rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.2s;
-      box-shadow: 0 4px 20px rgba(0,166,81,0.35);
-      position: relative;
-      overflow: hidden;
-    }
-    .btn-registrar::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: repeating-linear-gradient(
-        -55deg, transparent, transparent 10px,
-        rgba(255,255,255,0.04) 10px, rgba(255,255,255,0.04) 12px
-      );
-    }
-    .btn-registrar:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-    .btn-registrar:not(:disabled):active { transform: scale(0.98); }
-
-    /* ════════════════════════════════
-       BOTÃO PDF
-    ════════════════════════════════ */
-    .btn-pdf {
-      width: 100%;
-      background: linear-gradient(135deg, #b8860b 0%, var(--gold) 50%, var(--gold2) 100%);
-      color: #06111f;
-      border: none;
-      border-radius: 10px;
-      padding: 15px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800;
-      font-size: 1.1rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.2s;
-      box-shadow: 0 4px 20px rgba(240,180,41,0.3);
-      position: relative;
-      overflow: hidden;
-    }
-    .btn-pdf::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: repeating-linear-gradient(
-        -55deg, transparent, transparent 10px,
-        rgba(255,255,255,0.06) 10px, rgba(255,255,255,0.06) 12px
-      );
-    }
-    .btn-pdf:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
-    .btn-pdf:not(:disabled):active { transform: scale(0.98); }
-
-    /* ════════════════════════════════
-       CARDS DE VISITA
-    ════════════════════════════════ */
-    .visit-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-      position: relative;
-      transition: border-color 0.2s, transform 0.15s;
-    }
-    .visit-card:active { transform: scale(0.995); }
-
-    /* Barra lateral colorida por receptividade */
-    .visit-card .card-bar {
-      position: absolute;
-      top: 0; left: 0;
-      width: 4px; height: 100%;
-    }
-    .bar-green  { background: linear-gradient(180deg, var(--green), var(--green2)); }
-    .bar-gold   { background: linear-gradient(180deg, var(--gold), var(--gold2)); }
-    .bar-red    { background: linear-gradient(180deg, var(--red), #f87171); }
-
-    .card-body { padding: 12px 14px 12px 18px; }
-
-    .card-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .card-name {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800;
-      font-size: 1.1rem;
-      letter-spacing: 0.02em;
-      color: #ffffff;
-      line-height: 1.1;
-    }
-
-    .visit-badge {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.58rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      padding: 3px 8px;
-      border-radius: 4px;
-      flex-shrink: 0;
-      border: 1px solid;
-    }
-    .vb-green { background: rgba(0,166,81,0.15);  color: var(--green2); border-color: rgba(0,166,81,0.4); }
-    .vb-gold  { background: rgba(240,180,41,0.15); color: var(--gold2);  border-color: rgba(240,180,41,0.4); }
-    .vb-red   { background: rgba(229,48,48,0.15);  color: #f87171;       border-color: rgba(229,48,48,0.4); }
-
-    .card-meta {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.65rem;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-    .card-meta span { display: flex; align-items: center; gap: 4px; }
-
-    .card-address {
-      display: flex;
-      align-items: flex-start;
-      gap: 6px;
-      font-size: 0.8rem;
-      color: #7aabcc;
-      line-height: 1.4;
-      margin-bottom: 4px;
-    }
-
-    .card-obs {
-      display: flex;
-      align-items: flex-start;
-      gap: 6px;
-      font-size: 0.78rem;
-      color: var(--gold);
-      font-style: italic;
-      opacity: 0.85;
-      line-height: 1.4;
-    }
-
-    /* Mini mapa no card */
-    .card-mini-map {
-      width: 100%;
-      height: 110px;
-      object-fit: cover;
-      display: block;
-      border-bottom: 1px solid var(--border);
-    }
-    .card-map-placeholder {
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(0,0,0,0.2);
-      font-size: 0.65rem;
-      color: var(--dim);
-      font-family: 'IBM Plex Mono', monospace;
-    }
-
-    /* ════════════════════════════════
-       EMPTY STATE
-    ════════════════════════════════ */
-    .empty-state {
-      text-align: center;
-      padding: 40px 20px;
-      color: var(--dim);
-    }
-    .empty-state p {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1rem;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      margin-top: 12px;
-    }
-
-    /* ════════════════════════════════
-       PDF OVERLAY
-    ════════════════════════════════ */
-    #pdfOverlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(5,16,30,0.92);
-      backdrop-filter: blur(6px);
-      z-index: 9998;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-    }
-    #pdfOverlay.hidden { display: none; }
-    #pdfProgress {
-      width: 240px;
-      height: 4px;
-      background: var(--border);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    #pdfProgressBar {
-      height: 100%;
-      background: linear-gradient(90deg, var(--green), var(--gold));
-      border-radius: 2px;
-      transition: width 0.3s ease;
-      width: 0%;
-    }
-    .overlay-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800;
-      font-size: 1.2rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text);
-    }
-    .overlay-detail {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.68rem;
-      color: var(--muted);
-    }
-
-    /* ════════════════════════════════
-       TOAST
-    ════════════════════════════════ */
-    #toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(24px);
-      opacity: 0;
-      transition: all 0.3s ease;
-      z-index: 9999;
-      pointer-events: none;
-      min-width: 260px;
-      max-width: 90vw;
-      text-align: center;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 1rem;
-      letter-spacing: 0.05em;
-      padding: 12px 20px;
-      border-radius: 8px;
-      border: 1.5px solid;
-    }
-    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    #toast.t-success { background: #052215; border-color: var(--green); color: #6ee7a8; }
-    #toast.t-error   { background: #1f0a0a; border-color: var(--red);   color: #fca5a5; }
-    #toast.t-warning { background: #1f1505; border-color: var(--gold);  color: var(--gold2); }
-    #toast.t-info    { background: var(--card); border-color: var(--border); color: var(--text); }
-
-    /* ════════════════════════════════
-       SPINNER
-    ════════════════════════════════ */
-    .spinner {
-      width: 18px; height: 18px;
-      border: 2px solid rgba(255,255,255,0.25);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      display: inline-block;
-      vertical-align: middle;
-      flex-shrink: 0;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ════════════════════════════════
-       SEÇÃO PDF INFO
-    ════════════════════════════════ */
-    .pdf-section {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 18px 20px;
-      position: relative;
-      overflow: hidden;
-    }
-    .pdf-section::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0;
-      width: 4px; height: 100%;
-      background: linear-gradient(180deg, var(--gold), var(--gold2));
-    }
-    .pdf-desc {
-      font-size: 0.85rem;
-      color: var(--muted);
-      line-height: 1.5;
-      margin-bottom: 14px;
-      padding-left: 4px;
-    }
-    #pdfApoiadorCount {
-      text-align: center;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.65rem;
-      color: var(--muted);
-      margin-top: 10px;
-    }
-
-    /* ════════════════════════════════
-       TOTAL BADGE
-    ════════════════════════════════ */
-    .total-badge {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.62rem;
-      letter-spacing: 0.08em;
-      padding: 3px 10px;
-      border-radius: 4px;
-      background: rgba(0,0,0,0.3);
-      border: 1px solid var(--border);
-      color: var(--muted);
-    }
-
-    /* ════════════════════════════════
-       RODAPÉ DECORATIVO
-    ════════════════════════════════ */
-    .app-footer {
-      text-align: center;
-      padding: 32px 20px 48px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.6rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--dim);
-    }
-    .footer-stars { color: var(--gold); letter-spacing: 0.3em; font-size: 0.7rem; }
-
-    /* ════════════════════════════════
-       SCROLLBAR
-    ════════════════════════════════ */
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-    /* ════════════════════════════════
-       ANIMAÇÃO DE ENTRADA DOS CARDS
-    ════════════════════════════════ */
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .visit-card { animation: fadeInUp 0.25s ease both; }
-  </style>
+/* ─── FOOTER ─── */
+.foot{text-align:center;padding:28px 18px 44px;
+  font-family:'IBM Plex Mono',monospace;font-size:.58rem;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--dim);}
+.foot-stars{color:var(--gold);letter-spacing:.3em;font-size:.65rem;margin-bottom:5px;}
+.foot-dev{margin-top:4px;color:var(--muted);}
+.foot-dev span{color:var(--gold);}
+</style>
 </head>
 <body>
 
-<!-- ═══ PDF OVERLAY ═══ -->
-<div id="pdfOverlay" class="hidden">
-  <div class="spinner" style="width:36px;height:36px;border-width:3px;border-top-color:var(--gold);"></div>
-  <p class="overlay-title" id="pdfOverlayMsg">Gerando PDFs...</p>
-  <div id="pdfProgress"><div id="pdfProgressBar"></div></div>
-  <p class="overlay-detail" id="pdfOverlayDetail">Aguarde...</p>
+<!-- PDF OVERLAY -->
+<div id="overlay">
+  <div class="spin" style="width:34px;height:34px;border-width:3px;border-top-color:var(--gold);"></div>
+  <p class="ov-title" id="ov-msg">Gerando PDFs...</p>
+  <div id="ov-bar"><div id="ov-fill"></div></div>
+  <p class="ov-detail" id="ov-detail">Aguarde...</p>
 </div>
 
-<div class="app-shell" style="max-width:520px;margin:0 auto;">
+<div class="wrap">
 
-  <!-- ═══════════════ HEADER CAMPANHA ═══════════════ -->
-  <header class="campaign-header">
-    <div class="header-inner">
-
-      <!-- Selo ao vivo -->
-      <div class="campaign-seal">
-        <div class="seal-dot"></div>
-        <span class="seal-text">Campo · Ao Vivo</span>
-      </div>
-
-      <!-- Título -->
-      <h1 class="campaign-title">
-        Campo<br>
-        <span class="year-highlight">2026</span>
-      </h1>
-      <p class="campaign-sub">Sistema de rastreio de campanha</p>
-
-      <!-- Ações -->
-      <div class="header-actions">
-        <div id="offlineBadge" class="offline-badge hidden">
-          <i data-lucide="wifi-off" style="width:11px;height:11px;"></i>
-          <span>Offline</span>
-        </div>
-        <button onclick="exportCSV()" class="btn-csv" title="Exportar CSV">
-          <i data-lucide="download" style="width:13px;height:13px;"></i>
-          Exportar CSV
+  <!-- HEADER -->
+  <header class="hdr">
+    <div class="badge-live"><div class="dot-live"></div><span>CAMPO · AO VIVO</span></div>
+    <div class="hdr-top">
+      <h1 class="hdr-title">Campo<em>2026</em></h1>
+      <div class="hdr-actions">
+        <button class="btn-csv" onclick="exportCSV()">
+          <i data-lucide="download" style="width:12px;height:12px;"></i>CSV
         </button>
       </div>
-
-      <!-- Placar -->
-      <div class="scoreboard">
-        <div class="score-card s-green">
-          <div class="score-num c-green" id="countApoiador">0</div>
-          <div class="score-label">Apoiadores</div>
-        </div>
-        <div class="score-card s-gold">
-          <div class="score-num c-gold" id="countIndeciso">0</div>
-          <div class="score-label">Indecisos</div>
-        </div>
-        <div class="score-card s-red">
-          <div class="score-num c-red" id="countRejeicao">0</div>
-          <div class="score-label">Rejeições</div>
-        </div>
-      </div>
-
+    </div>
+    <!-- Status Firebase -->
+    <div id="fb-status"></div>
+    <!-- Placar -->
+    <div class="scoreboard">
+      <div class="sc g"><div class="sc-num g" id="cnt-a">0</div><div class="sc-lbl">Apoiadores</div></div>
+      <div class="sc y"><div class="sc-num y" id="cnt-i">0</div><div class="sc-lbl">Indecisos</div></div>
+      <div class="sc r"><div class="sc-num r" id="cnt-r">0</div><div class="sc-lbl">Rejeições</div></div>
     </div>
   </header>
 
-  <main style="padding:20px 16px;display:flex;flex-direction:column;gap:24px;">
+  <!-- FORM -->
+  <div class="sec">
+    <div class="sec-hdr">Nova Visita</div>
+    <div class="form-card">
 
-    <!-- ═══ NOVA VISITA ═══ -->
-    <section>
-      <div class="sec-label">Nova Visita</div>
-      <div class="form-card" style="display:flex;flex-direction:column;gap:16px;">
-
-        <!-- Nome -->
-        <div>
-          <label class="field-label" for="nomeEleitor">Nome do Apoiador</label>
-          <input type="text" id="nomeEleitor" class="field-input"
-            placeholder="Digite o nome completo..." autocomplete="off" maxlength="100" />
-        </div>
-
-        <!-- Receptividade -->
-        <div>
-          <label class="field-label">Receptividade</label>
-          <div class="recep-grid">
-            <button class="recep-btn" data-value="Apoiador" onclick="selectReceptividade(this,'Apoiador')">
-              <span class="r-emoji">👍</span>
-              <span class="r-label" style="color:#4ade80;">Apoiador</span>
-            </button>
-            <button class="recep-btn" data-value="Indeciso" onclick="selectReceptividade(this,'Indeciso')">
-              <span class="r-emoji">🤔</span>
-              <span class="r-label" style="color:var(--gold2);">Indeciso</span>
-            </button>
-            <button class="recep-btn" data-value="Rejeição" onclick="selectReceptividade(this,'Rejeição')">
-              <span class="r-emoji">👎</span>
-              <span class="r-label" style="color:#f87171;">Rejeição</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Observação -->
-        <div>
-          <label class="field-label" for="observacao">
-            Observação <span style="color:var(--dim);font-weight:400;">(opcional)</span>
-          </label>
-          <textarea id="observacao" class="field-input" rows="2"
-            placeholder="Alguma anotação sobre esta visita..." maxlength="300"></textarea>
-        </div>
-
-        <!-- GPS Status -->
-        <div id="gpsStatus" class="gps-status gps-wait hidden">
-          <i data-lucide="map-pin" style="width:14px;height:14px;flex-shrink:0;margin-top:1px;"></i>
-          <span class="gps-status-text" id="gpsStatusText">Aguardando GPS...</span>
-        </div>
-
-        <!-- Botão -->
-        <button id="btnRegistrar" onclick="registrarVisita()" class="btn-registrar">
-          <i data-lucide="map-pin" style="width:20px;height:20px;"></i>
-          Registrar Visita e GPS
-        </button>
-      </div>
-    </section>
-
-    <!-- ═══ RELATÓRIO PDF ═══ -->
-    <section>
-      <div class="sec-label">Relatório de Apoiadores</div>
-      <div class="pdf-section">
-        <p class="pdf-desc">
-          Gera um PDF individual por apoiador com histórico de visitas, endereços e localização no mapa.
-        </p>
-        <button id="btnGerarPDF" onclick="gerarPDFApoiadores()" class="btn-pdf">
-          <i data-lucide="file-text" style="width:20px;height:20px;"></i>
-          Gerar PDFs dos Apoiadores
-        </button>
-        <p id="pdfApoiadorCount" class="hidden"></p>
-      </div>
-    </section>
-
-    <!-- ═══ VISITAS DO DIA ═══ -->
-    <section>
-      <div class="sec-label" style="justify-content:space-between;">
-        <span style="display:flex;align-items:center;gap:8px;">
-          Visitas de Hoje
-          <span style="content:'';flex:0;height:1px;background:var(--border);"></span>
-        </span>
-        <span class="total-badge" id="totalVisitas">0 registros</span>
+      <div>
+        <label class="flbl" for="inp-nome">Nome do Apoiador</label>
+        <input id="inp-nome" class="finput" type="text"
+          placeholder="Digite o nome completo..." autocomplete="off" maxlength="100"/>
       </div>
 
-      <div id="listaVisitas" style="display:flex;flex-direction:column;gap:10px;">
-        <div id="emptyState" class="empty-state">
-          <i data-lucide="clipboard-list" style="width:40px;height:40px;opacity:0.2;margin:0 auto;display:block;"></i>
-          <p>Nenhuma visita registrada hoje</p>
+      <div>
+        <label class="flbl">Receptividade</label>
+        <div class="rcgrid">
+          <button class="rcbtn" onclick="selecionarRC(this,'Apoiador')">
+            <span class="em">👍</span><span class="lb" style="color:#4ade80;">Apoiador</span>
+          </button>
+          <button class="rcbtn" onclick="selecionarRC(this,'Indeciso')">
+            <span class="em">🤔</span><span class="lb" style="color:var(--gold);">Indeciso</span>
+          </button>
+          <button class="rcbtn" onclick="selecionarRC(this,'Rejeição')">
+            <span class="em">👎</span><span class="lb" style="color:#f87171;">Rejeição</span>
+          </button>
         </div>
       </div>
-    </section>
 
-  </main>
+      <div>
+        <label class="flbl" for="inp-obs">Observação <span style="color:var(--dim);font-weight:400;">(opcional)</span></label>
+        <textarea id="inp-obs" class="finput" rows="2"
+          placeholder="Anote algo sobre esta visita..." maxlength="300"></textarea>
+      </div>
 
-  <!-- Rodapé -->
-  <footer class="app-footer">
-    <div class="footer-stars">★ ★ ★</div>
-    <div style="margin-top:6px;">Campanha Política 2026 · Campo App</div>
-    <div style="margin-top:4px;color:var(--muted);">Desenvolvido por <span style="color:var(--gold);">Rafael Medeiros</span></div>
+      <!-- GPS status -->
+      <div id="gps-box" class="gps-box">
+        <i data-lucide="map-pin" style="width:13px;height:13px;flex-shrink:0;margin-top:1px;"></i>
+        <span id="gps-txt">Aguardando...</span>
+      </div>
+
+      <button id="btn-reg" class="btn-reg" onclick="registrar()">
+        <i data-lucide="map-pin" style="width:19px;height:19px;"></i>
+        Registrar Visita e GPS
+      </button>
+    </div>
+  </div>
+
+  <!-- PDF -->
+  <div class="sec" style="margin-top:18px;">
+    <div class="sec-hdr">Relatório de Apoiadores</div>
+    <div class="pdf-card">
+      <p class="pdf-desc">Gera um PDF por apoiador com histórico de visitas, endereços e mapa.</p>
+      <button id="btn-pdf" class="btn-pdf" onclick="gerarPDFs()">
+        <i data-lucide="file-text" style="width:19px;height:19px;"></i>
+        Gerar PDFs dos Apoiadores
+      </button>
+      <p id="pdf-count"></p>
+    </div>
+  </div>
+
+  <!-- VISITAS DO DIA -->
+  <div class="sec" style="margin-top:18px;">
+    <div class="sec-hdr" style="justify-content:space-between;">
+      <span style="display:flex;align-items:center;gap:8px;">Visitas de Hoje</span>
+      <span id="total-lbl" style="font-family:'IBM Plex Mono',monospace;font-size:.6rem;
+        color:var(--muted);padding:2px 8px;border:1px solid var(--border);border-radius:4px;">
+        0 registros
+      </span>
+    </div>
+    <div id="lista">
+      <div class="empty" id="empty">
+        <i data-lucide="clipboard-list" style="width:36px;height:36px;opacity:.2;display:block;margin:0 auto;"></i>
+        <p>Nenhuma visita registrada hoje</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="foot">
+    <div class="foot-stars">★ ★ ★</div>
+    <div>Campanha Política 2026 · Campo App</div>
+    <div class="foot-dev">Desenvolvido por <span>Rafael Medeiros</span></div>
   </footer>
 
-</div>
+</div><!-- /wrap -->
 
-<!-- Toast -->
 <div id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════════════════════════
-//  ⚙️  FIREBASE CONFIG
-// ═══════════════════════════════════════════════════════════
-const firebaseConfig = {
+// ════════════════════════════════════════
+//  CONFIG FIREBASE
+// ════════════════════════════════════════
+const FB_CONFIG = {
   apiKey:            "AIzaSyDkiqGmwkziMptTo67YCR4Ro1KqDzKiEQY",
   authDomain:        "campoapp-5a031.firebaseapp.com",
   projectId:         "campoapp-5a031",
@@ -967,406 +377,331 @@ const firebaseConfig = {
   appId:             "1:7250304860:web:8302878a21046a8c81eb99"
 };
 
-const MAPS_STATIC_KEY = "SUA_MAPS_STATIC_API_KEY_AQUI";
-const NOME_CAMPANHA   = "Campanha Política 2026";
+const NOME_CAMPANHA = "Campanha Política 2026";
 
-// ═══════════════════════════════════════════════════════════
-//  FIREBASE + OFFLINE
-// ═══════════════════════════════════════════════════════════
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+// ════════════════════════════════════════
+//  INICIALIZAR FIREBASE
+// ════════════════════════════════════════
+let db;
+try {
+  firebase.initializeApp(FB_CONFIG);
+  db = firebase.firestore();
+  setFbStatus('connecting', '⏳ Conectando ao banco de dados...');
+} catch(e) {
+  setFbStatus('error', 'Erro ao inicializar o Firebase: ' + e.message);
+}
 
-db.enablePersistence({ synchronizeTabs: true })
-  .then(() => console.log("✅ Persistência offline ativa"))
-  .catch(err => {
-    if (err.code === 'failed-precondition') console.warn("⚠️ Múltiplas abas abertas");
-    else if (err.code === 'unimplemented')  console.warn("⚠️ Browser sem IndexedDB");
-  });
-
-// ═══════════════════════════════════════════════════════════
+// ════════════════════════════════════════
 //  ESTADO
-// ═══════════════════════════════════════════════════════════
-let receptividadeSelecionada = null;
-let visitasCache = [];
+// ════════════════════════════════════════
+let receptividade = null;
+let cache = [];        // todas as visitas carregadas
+let cacheHoje = [];    // visitas de hoje (filtradas no cliente)
 
-// ═══════════════════════════════════════════════════════════
+// ════════════════════════════════════════
 //  BOOT
-// ═══════════════════════════════════════════════════════════
-// (inicialização feita no final do arquivo junto com registrarPWA)
-
-// ═══════════════════════════════════════════════════════════
-//  CONECTIVIDADE
-// ═══════════════════════════════════════════════════════════
-function monitorarConectividade() {
-  const badge = document.getElementById('offlineBadge');
-  const update = () => {
-    navigator.onLine ? badge.classList.add('hidden') : badge.classList.remove('hidden');
-    lucide.createIcons();
-  };
-  window.addEventListener('online',  update);
-  window.addEventListener('offline', update);
-  update();
-}
-
-// ═══════════════════════════════════════════════════════════
-//  RECEPTIVIDADE
-// ═══════════════════════════════════════════════════════════
-function selectReceptividade(btn, valor) {
-  document.querySelectorAll('.recep-btn').forEach(b =>
-    b.classList.remove('selected-apoiador','selected-indeciso','selected-rejeicao'));
-  const classMap = { Apoiador:'selected-apoiador', Indeciso:'selected-indeciso', 'Rejeição':'selected-rejeicao' };
-  btn.classList.add(classMap[valor]);
-  receptividadeSelecionada = valor;
-}
-
-// ═══════════════════════════════════════════════════════════
-//  REGISTRAR VISITA — corrigido
-// ═══════════════════════════════════════════════════════════
-async function registrarVisita() {
-  const nome = document.getElementById('nomeEleitor').value.trim();
-  const obs  = document.getElementById('observacao').value.trim();
-  if (!nome)                    { showToast("⚠️ Informe o nome do apoiador", "warning"); return; }
-  if (!receptividadeSelecionada){ showToast("⚠️ Selecione a receptividade", "warning"); return; }
-
-  const btn = document.getElementById('btnRegistrar');
-  btn.disabled = true;
-  btn.innerHTML = `<span class="spinner"></span><span> Obtendo GPS...</span>`;
-  mostrarStatusGPS("Capturando localização...", "loading");
-
-  if (!navigator.geolocation) {
-    showToast("❌ GPS não suportado neste dispositivo", "error");
-    resetarBotao(); return;
-  }
-
-  // Tenta primeiro com alta precisão, depois com precisão padrão
-  obterGPS(true)
-    .catch(() => {
-      mostrarStatusGPS("⚠️ Tentando modo padrão de GPS...", "loading");
-      return obterGPS(false);
-    })
-    .then(pos => processarPosicao(pos, nome, obs, btn))
-    .catch(err => {
-      const msgs = {
-        1: "Permissão de GPS negada. Vá em Configurações e permita o acesso à localização.",
-        2: "Sinal de GPS não encontrado. Vá para uma área aberta.",
-        3: "GPS demorou demais. Verifique o sinal e tente novamente."
-      };
-      const msg = msgs[err.code] || `Erro de GPS (código ${err.code || '?'})`;
-      mostrarStatusGPS(`❌ ${msg}`, "error");
-      showToast(`❌ ${msg}`, "error");
-      resetarBotao();
-    });
-}
-
-// Promessa que resolve com a posição ou rejeita com erro
-function obterGPS(highAccuracy) {
-  return new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: highAccuracy,
-      timeout:            highAccuracy ? 12000 : 8000,
-      maximumAge:         0
-    });
-  });
-}
-
-// Processa a posição obtida e salva no Firestore
-async function processarPosicao(pos, nome, obs, btn) {
-  const { latitude, longitude, accuracy } = pos.coords;
-  const precisao = Math.round(accuracy);
-
-  // Precisão acima de 200m — bloqueia (sinal muito ruim)
-  if (accuracy > 200) {
-    mostrarStatusGPS(
-      `❌ GPS muito impreciso: ±${precisao}m. Saia para área aberta e tente novamente.`,
-      "error"
-    );
-    showToast(`GPS impreciso: ±${precisao}m. Tente em local aberto.`, "error");
-    resetarBotao();
-    return;
-  }
-
-  // Precisão entre 50–200m — avisa mas permite salvar
-  if (accuracy > 50) {
-    mostrarStatusGPS(
-      `⚠️ GPS com precisão reduzida: ±${precisao}m — salvando assim mesmo...`,
-      "loading"
-    );
-  } else {
-    mostrarStatusGPS(`✅ GPS ok · ±${precisao}m · Buscando endereço...`, "success");
-  }
-
-  btn.innerHTML = `<span class="spinner"></span><span> Buscando endereço...</span>`;
-
-  // Busca o endereço com timeout de 6s (não bloqueia o salvamento se falhar)
-  const endereco = await buscarEndereco(latitude, longitude);
-  mostrarStatusGPS(`✅ ${endereco}`, "success");
-  btn.innerHTML = `<span class="spinner"></span><span> Gravando...</span>`;
-
-  try {
-    await db.collection('visitas').add({
-      nome,
-      receptividade: receptividadeSelecionada,
-      observacao:    obs,
-      endereco,
-      timestamp:     firebase.firestore.FieldValue.serverTimestamp(),
-      localizacao:   { lat: latitude, lng: longitude, precisao }
-    });
-    showToast("✅ Visita registrada com sucesso!", "success");
-    limparFormulario();
-  } catch(err) {
-    console.error("Firestore error:", err);
-    // Mensagem de erro mais descritiva
-    if (err.code === 'permission-denied') {
-      showToast("❌ Permissão negada pelo Firebase. Verifique as Regras de Segurança.", "error");
-    } else if (err.code === 'unavailable') {
-      showToast("⚠️ Sem conexão — visita salva offline e enviada quando voltar o sinal.", "warning");
-      limparFormulario(); // Firestore offline já salvou localmente
-    } else {
-      showToast(`❌ Erro ao salvar: ${err.message || err.code}`, "error");
-    }
-  }
-  resetarBotao();
-}
-
-function resetarBotao() {
-  const btn = document.getElementById('btnRegistrar');
-  btn.disabled = false;
-  btn.innerHTML = `<i data-lucide="map-pin" style="width:20px;height:20px;"></i> Registrar Visita e GPS`;
+// ════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
+  iniciarSnapshot();
+  gerarIconePWA();
+});
+
+// ════════════════════════════════════════
+//  STATUS FIREBASE (banner no header)
+// ════════════════════════════════════════
+function setFbStatus(tipo, msg) {
+  const el = document.getElementById('fb-status');
+  el.className = tipo;
+  if (tipo === 'ok') { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.textContent = msg;
 }
 
-function limparFormulario() {
-  document.getElementById('nomeEleitor').value = '';
-  document.getElementById('observacao').value  = '';
-  receptividadeSelecionada = null;
-  document.querySelectorAll('.recep-btn').forEach(b =>
-    b.classList.remove('selected-apoiador','selected-indeciso','selected-rejeicao'));
-  setTimeout(() => document.getElementById('gpsStatus').classList.add('hidden'), 4000);
-}
-
-function mostrarStatusGPS(msg, tipo) {
-  const el  = document.getElementById('gpsStatus');
-  const txt = document.getElementById('gpsStatusText');
-  el.classList.remove('hidden');
-  txt.textContent = msg;
-  el.className = 'gps-status';
-  if      (tipo === 'success') el.classList.add('gps-ok');
-  else if (tipo === 'error')   el.classList.add('gps-err');
-  else                         el.classList.add('gps-wait');
-  lucide.createIcons();
-}
-
-// ═══════════════════════════════════════════════════════════
-//  REVERSE GEOCODING — OpenStreetMap Nominatim
-//  Timeout de 6s: se não responder, usa as coordenadas brutas
-// ═══════════════════════════════════════════════════════════
-async function buscarEndereco(lat, lng) {
-  try {
-    const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), 6000);
-
-    const url  = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=pt-BR&addressdetails=1`;
-    const res  = await fetch(url, {
-      signal:  controller.signal,
-      headers: { 'Accept-Language': 'pt-BR' }
-    });
-    clearTimeout(timeoutId);
-
-    const data = await res.json();
-    if (!data || data.error) return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-
-    const a = data.address || {};
-    const partes = [
-      a.road || a.pedestrian || a.footway || a.path,
-      a.house_number || null,
-      a.suburb || a.neighbourhood || a.quarter,
-      a.city || a.town || a.village || a.municipality,
-      a.state_code || a.state
-    ].filter(Boolean);
-
-    return partes.length >= 2
-      ? partes.join(', ')
-      : (data.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-  } catch(e) {
-    // Timeout ou sem internet — retorna coordenadas brutas (não bloqueia o salvamento)
-    return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  TOAST
-// ═══════════════════════════════════════════════════════════
-let toastTimer = null;
-function showToast(msg, tipo = 'info') {
-  const toast = document.getElementById('toast');
-  toast.className = `t-${tipo}`;
-  toast.textContent = msg;
-  toast.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
-}
-
-// ═══════════════════════════════════════════════════════════
-//  SNAPSHOT — sem índice composto (filtro de data no cliente)
-// ═══════════════════════════════════════════════════════════
-function iniciarSnapshotDoDia() {
-  mostrarStatusConexao('conectando');
+// ════════════════════════════════════════
+//  SNAPSHOT — sem índice composto
+//  Carrega últimas 200 visitas, filtra hoje no cliente
+// ════════════════════════════════════════
+function iniciarSnapshot() {
+  if (!db) return;
 
   db.collection('visitas')
     .orderBy('timestamp', 'desc')
     .limit(200)
     .onSnapshot(
       snap => {
-        mostrarStatusConexao('ok');
-        visitasCache = [];
-        snap.forEach(doc => visitasCache.push({ id: doc.id, ...doc.data() }));
+        setFbStatus('ok');
+        cache = [];
+        snap.forEach(doc => cache.push({ id: doc.id, ...doc.data() }));
 
-        // Filtra hoje no cliente (evita índice composto)
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        const visitasHoje = visitasCache.filter(v => {
-          if (!v.timestamp?.toDate) return true; // sem timestamp ainda (offline) → exibe
-          return v.timestamp.toDate() >= hoje;
+        // Filtra hoje no cliente
+        const ini = new Date(); ini.setHours(0,0,0,0);
+        cacheHoje = cache.filter(v => {
+          if (!v.timestamp?.toDate) return true;
+          return v.timestamp.toDate() >= ini;
         });
 
-        renderizarVisitas(visitasHoje);
+        renderizar(cacheHoje);
       },
       err => {
-        mostrarStatusConexao('erro', err.message);
-        console.error('Snapshot error:', err);
+        console.error('Snapshot:', err);
+        if (err.code === 'permission-denied') {
+          setFbStatus('error', '❌ ACESSO NEGADO — Abra o Firebase Console → Firestore → Regras e publique: allow read, write: if true;');
+        } else {
+          setFbStatus('error', '❌ Erro Firebase: ' + err.message);
+        }
       }
     );
 }
 
-// Indicador de status de conexão com Firebase
-function mostrarStatusConexao(estado, detalhe) {
-  let el = document.getElementById('fbStatus');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'fbStatus';
-    el.style.cssText = `
-      position:fixed; top:0; left:0; right:0; z-index:9997;
-      font-family:'IBM Plex Mono',monospace; font-size:0.65rem;
-      letter-spacing:0.08em; text-align:center;
-      padding:5px 12px; transition:all 0.3s;
-    `;
-    document.body.appendChild(el);
+// ════════════════════════════════════════
+//  RECEPTIVIDADE
+// ════════════════════════════════════════
+function selecionarRC(btn, valor) {
+  document.querySelectorAll('.rcbtn').forEach(b =>
+    b.classList.remove('sel-a','sel-i','sel-r'));
+  const cls = {Apoiador:'sel-a', Indeciso:'sel-i', 'Rejeição':'sel-r'}[valor];
+  btn.classList.add(cls);
+  receptividade = valor;
+}
+
+// ════════════════════════════════════════
+//  REGISTRAR VISITA
+// ════════════════════════════════════════
+async function registrar() {
+  const nome = document.getElementById('inp-nome').value.trim();
+  const obs  = document.getElementById('inp-obs').value.trim();
+
+  if (!nome)         { toast('⚠️ Informe o nome do apoiador', 'w'); return; }
+  if (!receptividade){ toast('⚠️ Selecione a receptividade', 'w'); return; }
+  if (!db)           { toast('❌ Firebase não inicializado', 'e'); return; }
+
+  const btn = document.getElementById('btn-reg');
+  setBtn(btn, true, 'Obtendo GPS...');
+  setGPS('Capturando localização...', '');
+
+  // Tenta obter GPS
+  let pos;
+  try {
+    pos = await getGPS(true);
+  } catch(e1) {
+    setGPS('Tentando modo alternativo de GPS...', '');
+    try {
+      pos = await getGPS(false);
+    } catch(e2) {
+      const msgs = {1:'Permissão negada. Habilite o GPS nas configurações.', 2:'GPS sem sinal. Vá para área aberta.', 3:'GPS demorou demais. Tente novamente.'};
+      setGPS(msgs[e2.code] || 'Erro de GPS (código '+e2.code+')', 'err');
+      toast('❌ ' + (msgs[e2.code] || 'Erro de GPS'), 'e');
+      setBtn(btn, false);
+      return;
+    }
   }
-  if (estado === 'ok') {
-    el.style.display = 'none';
-  } else if (estado === 'conectando') {
-    el.style.cssText += 'background:#0e2338;color:#4a7090;display:block;';
-    el.textContent = '⏳ CONECTANDO AO FIREBASE...';
-  } else if (estado === 'erro') {
-    el.style.cssText += 'background:#1f0a0a;color:#fca5a5;border-bottom:2px solid #e53030;display:block;';
-    el.textContent = `❌ FIREBASE: ${detalhe || 'verifique as Regras de Segurança no console.firebase.google.com'}`;
-    el.style.padding = '8px 12px';
+
+  const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+
+  // Bloqueia só acima de 200m
+  if (accuracy > 200) {
+    setGPS(`❌ GPS impreciso: ±${Math.round(accuracy)}m — vá para área aberta.`, 'err');
+    toast(`GPS impreciso (±${Math.round(accuracy)}m)`, 'w');
+    setBtn(btn, false);
+    return;
+  }
+
+  setGPS(`✅ GPS: ±${Math.round(accuracy)}m — buscando endereço...`, 'ok');
+  setBtn(btn, true, 'Buscando endereço...');
+
+  const endereco = await getEndereco(lat, lng);
+  setGPS(`✅ ${endereco}`, 'ok');
+  setBtn(btn, true, 'Gravando...');
+
+  // Salva no Firestore
+  try {
+    await db.collection('visitas').add({
+      nome,
+      receptividade,
+      observacao: obs,
+      endereco,
+      timestamp:  firebase.firestore.FieldValue.serverTimestamp(),
+      localizacao: { lat, lng, precisao: Math.round(accuracy) }
+    });
+    toast('✅ Visita registrada com sucesso!', 's');
+    limpar();
+  } catch(err) {
+    console.error('Firestore add error:', err);
+    if (err.code === 'permission-denied') {
+      toast('❌ Permissão negada. Corrija as Regras do Firebase.', 'e');
+      setFbStatus('error', '❌ PERMISSÃO NEGADA — corrija as Regras de Segurança no Firebase Console');
+    } else {
+      toast('❌ Erro ao salvar: ' + (err.message || err.code), 'e');
+    }
+  }
+
+  setBtn(btn, false);
+}
+
+// Promessa GPS
+function getGPS(highAccuracy) {
+  return new Promise((res, rej) =>
+    navigator.geolocation.getCurrentPosition(res, rej, {
+      enableHighAccuracy: highAccuracy,
+      timeout:            highAccuracy ? 12000 : 8000,
+      maximumAge:         0
+    })
+  );
+}
+
+// Geocodificação reversa (OpenStreetMap — gratuita, sem API key)
+async function getEndereco(lat, lng) {
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=pt-BR&addressdetails=1`,
+      { signal: ctrl.signal }
+    );
+    const d = await r.json();
+    if (!d || d.error) return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    const a = d.address || {};
+    const p = [
+      a.road || a.pedestrian || a.footway,
+      a.house_number,
+      a.suburb || a.neighbourhood,
+      a.city || a.town || a.village,
+      a.state_code || a.state
+    ].filter(Boolean);
+    return p.length >= 2 ? p.join(', ') : (d.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+  } catch {
+    return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-//  RENDER LISTA
-// ═══════════════════════════════════════════════════════════
-function renderizarVisitas(visitas) {
-  const lista = document.getElementById('listaVisitas');
-  const empty = document.getElementById('emptyState');
-  const total = document.getElementById('totalVisitas');
+// Helpers de UI
+function setBtn(btn, loading, label = '') {
+  btn.disabled = loading;
+  btn.innerHTML = loading
+    ? `<span class="spin"></span><span> ${label}</span>`
+    : `<i data-lucide="map-pin" style="width:19px;height:19px;"></i> Registrar Visita e GPS`;
+  if (!loading) lucide.createIcons();
+}
 
-  const counts = { Apoiador:0, Indeciso:0, 'Rejeição':0 };
-  visitas.forEach(v => { if(counts[v.receptividade]!==undefined) counts[v.receptividade]++; });
-
-  document.getElementById('countApoiador').textContent = counts['Apoiador'];
-  document.getElementById('countIndeciso').textContent = counts['Indeciso'];
-  document.getElementById('countRejeicao').textContent = counts['Rejeição'];
-  total.textContent = `${visitas.length} registro${visitas.length!==1?'s':''}`;
-
-  const apoiadores = agruparApoiadores(visitas);
-  const countEl    = document.getElementById('pdfApoiadorCount');
-  if(Object.keys(apoiadores).length > 0){
-    countEl.textContent = `${Object.keys(apoiadores).length} apoiador(es) com dados disponíveis`;
-    countEl.classList.remove('hidden');
-  } else {
-    countEl.classList.add('hidden');
-  }
-
-  lista.querySelectorAll('.visit-card').forEach(c => c.remove());
-
-  if(visitas.length === 0){
-    empty.classList.remove('hidden');
-    return;
-  }
-  empty.classList.add('hidden');
-  visitas.forEach(v => lista.appendChild(criarCardVisita(v)));
+function setGPS(msg, tipo) {
+  const box = document.getElementById('gps-box');
+  const txt = document.getElementById('gps-txt');
+  box.className = 'gps-box vis';
+  if (tipo === 'ok')  box.classList.add('ok');
+  if (tipo === 'err') box.classList.add('err');
+  txt.textContent = msg;
   lucide.createIcons();
 }
 
-// ═══════════════════════════════════════════════════════════
-//  CRIAR CARD DE VISITA
-// ═══════════════════════════════════════════════════════════
-function criarCardVisita(visita) {
-  const div = document.createElement('div');
-  div.className = 'visit-card';
+function limpar() {
+  document.getElementById('inp-nome').value = '';
+  document.getElementById('inp-obs').value  = '';
+  receptividade = null;
+  document.querySelectorAll('.rcbtn').forEach(b =>
+    b.classList.remove('sel-a','sel-i','sel-r'));
+  setTimeout(() => {
+    document.getElementById('gps-box').className = 'gps-box';
+  }, 4000);
+}
 
-  const cfg = {
-    Apoiador:  { bar:'bar-green', badge:'vb-green', emoji:'👍', label:'Apoiador' },
-    Indeciso:  { bar:'bar-gold',  badge:'vb-gold',  emoji:'🤔', label:'Indeciso' },
-    'Rejeição':{ bar:'bar-red',   badge:'vb-red',   emoji:'👎', label:'Rejeição' }
-  }[visita.receptividade] || { bar:'bar-gold', badge:'vb-gold', emoji:'❓', label:'?' };
+// ════════════════════════════════════════
+//  RENDERIZAR LISTA
+// ════════════════════════════════════════
+function renderizar(visitas) {
+  const lista = document.getElementById('lista');
+  const empty = document.getElementById('empty');
+  const total = document.getElementById('total-lbl');
 
-  const loc      = visita.localizacao || {};
-  const prec     = loc.precisao || '?';
-  const endereco = visita.endereco || `${(loc.lat||0).toFixed(5)}, ${(loc.lng||0).toFixed(5)}`;
-  const obs      = visita.observacao || '';
+  // Contadores
+  const cnt = { Apoiador:0, Indeciso:0, 'Rejeição':0 };
+  visitas.forEach(v => { if (cnt[v.receptividade] !== undefined) cnt[v.receptividade]++; });
+  document.getElementById('cnt-a').textContent = cnt['Apoiador'];
+  document.getElementById('cnt-i').textContent = cnt['Indeciso'];
+  document.getElementById('cnt-r').textContent = cnt['Rejeição'];
+  total.textContent = `${visitas.length} registro${visitas.length !== 1 ? 's' : ''}`;
 
-  let hora = '—';
-  if(visita.timestamp?.toDate){
-    hora = visita.timestamp.toDate().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  // PDF count
+  const apoiadores = agruparApoiadores(cache);
+  const nAp = Object.keys(apoiadores).length;
+  const pdfCount = document.getElementById('pdf-count');
+  if (nAp > 0) {
+    pdfCount.textContent = `${nAp} apoiador(es) com dados`;
+    pdfCount.style.display = 'block';
+  } else {
+    pdfCount.style.display = 'none';
   }
 
-  const mapUrl = MAPS_STATIC_KEY && MAPS_STATIC_KEY !== "SUA_MAPS_STATIC_API_KEY_AQUI"
-    ? `https://maps.googleapis.com/maps/api/staticmap?center=${loc.lat},${loc.lng}&zoom=17&size=600x110&scale=2&maptype=roadmap&markers=color:red%7C${loc.lat},${loc.lng}&style=feature:all|element:geometry|color:0x0b1d30&key=${MAPS_STATIC_KEY}`
-    : null;
+  // Cards
+  lista.querySelectorAll('.vcard').forEach(c => c.remove());
+
+  if (visitas.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  visitas.forEach(v => lista.appendChild(criarCard(v)));
+  lucide.createIcons();
+}
+
+function criarCard(v) {
+  const div = document.createElement('div');
+  div.className = 'vcard';
+
+  const cfg = {
+    Apoiador:  { bar:'g', badge:'vb-g', em:'👍', lbl:'Apoiador' },
+    Indeciso:  { bar:'y', badge:'vb-y', em:'🤔', lbl:'Indeciso' },
+    'Rejeição':{ bar:'r', badge:'vb-r', em:'👎', lbl:'Rejeição' }
+  }[v.receptividade] || { bar:'y', badge:'vb-y', em:'❓', lbl:'?' };
+
+  const loc = v.localizacao || {};
+  const prec = loc.precisao ?? '?';
+  const end  = v.endereco || `${(loc.lat||0).toFixed(5)}, ${(loc.lng||0).toFixed(5)}`;
+  const obs  = v.observacao || '';
+  let hora = '—';
+  if (v.timestamp?.toDate) {
+    hora = v.timestamp.toDate().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+  }
 
   div.innerHTML = `
-    <div class="card-bar ${cfg.bar}"></div>
-    ${mapUrl
-      ? `<img class="card-mini-map" src="${mapUrl}" alt="Mapa" loading="lazy" onerror="this.style.display='none'" />`
-      : `<div class="card-map-placeholder">
-           <i data-lucide="map" style="width:12px;height:12px;"></i>
-           <span>Configure MAPS_STATIC_KEY para ver o mapa</span>
-         </div>`}
-    <div class="card-body">
-      <div class="card-top">
-        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-          <span style="font-size:1.25rem;flex-shrink:0;">${cfg.emoji}</span>
-          <span class="card-name">${escapeHtml(visita.nome)}</span>
+    <div class="vbar ${cfg.bar}"></div>
+    <div class="vbody">
+      <div class="vtop">
+        <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+          <span style="font-size:1.2rem;flex-shrink:0;">${cfg.em}</span>
+          <span class="vname">${xss(v.nome)}</span>
         </div>
-        <span class="visit-badge ${cfg.badge}">${cfg.label}</span>
+        <span class="vbadge ${cfg.badge}">${cfg.lbl}</span>
       </div>
-      <div class="card-meta">
-        <span><i data-lucide="clock" style="width:11px;height:11px;"></i>${hora}</span>
-        <span><i data-lucide="crosshair" style="width:11px;height:11px;"></i>±${prec}m</span>
+      <div class="vmeta">
+        <span style="display:flex;align-items:center;gap:4px;">
+          <i data-lucide="clock" style="width:11px;height:11px;"></i>${hora}
+        </span>
+        <span style="display:flex;align-items:center;gap:4px;">
+          <i data-lucide="crosshair" style="width:11px;height:11px;"></i>±${prec}m
+        </span>
       </div>
-      <div class="card-address">
+      <div class="vaddr">
         <i data-lucide="map-pin" style="width:12px;height:12px;flex-shrink:0;margin-top:2px;color:#1a6fc4;"></i>
-        <span>${escapeHtml(endereco)}</span>
+        <span>${xss(end)}</span>
       </div>
-      ${obs ? `
-      <div class="card-obs">
+      ${obs ? `<div class="vobs">
         <i data-lucide="message-square" style="width:12px;height:12px;flex-shrink:0;margin-top:2px;"></i>
-        <span>${escapeHtml(obs)}</span>
+        <span>${xss(obs)}</span>
       </div>` : ''}
     </div>`;
   return div;
 }
 
-// ═══════════════════════════════════════════════════════════
+// ════════════════════════════════════════
 //  EXPORTAR CSV
-// ═══════════════════════════════════════════════════════════
+// ════════════════════════════════════════
 function exportCSV() {
-  if(visitasCache.length === 0){ showToast("Nenhum dado para exportar","warning"); return; }
-  const header = ['Nome','Receptividade','Data/Hora','Endereço','Observação','Latitude','Longitude','Precisao(m)'];
-  const linhas = visitasCache.map(v => {
+  const dados = cacheHoje.length > 0 ? cacheHoje : cache;
+  if (dados.length === 0) { toast('Nenhum dado para exportar', 'w'); return; }
+  const hdr = ['Nome','Receptividade','Data/Hora','Endereço','Observação','Latitude','Longitude','Precisão(m)'];
+  const rows = dados.map(v => {
     const loc  = v.localizacao || {};
     const hora = v.timestamp?.toDate ? v.timestamp.toDate().toLocaleString('pt-BR') : '';
     return [
@@ -1378,522 +713,389 @@ function exportCSV() {
       loc.lat||'', loc.lng||'', loc.precisao||''
     ].join(';');
   });
-  const csv  = '\ufeff' + [header.join(';'),...linhas].join('\r\n');
-  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const url  = URL.createObjectURL(blob);
+  const csv  = '\ufeff' + [hdr.join(';'), ...rows].join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const a    = document.createElement('a');
-  a.href = url;
-  a.download = `visitas_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+  a.href     = URL.createObjectURL(blob);
+  a.download = `campo2026_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
   a.click();
-  URL.revokeObjectURL(url);
-  showToast(`✅ ${visitasCache.length} registros exportados`,"success");
+  toast(`✅ ${dados.length} registros exportados`, 's');
 }
 
-// ═══════════════════════════════════════════════════════════
-//  AGRUPAR APOIADORES
-// ═══════════════════════════════════════════════════════════
+// ════════════════════════════════════════
+//  AGRUPAR APOIADORES (usa cache completo)
+// ════════════════════════════════════════
 function agruparApoiadores(visitas) {
-  const grupos = {};
+  const g = {};
   visitas.filter(v => v.receptividade === 'Apoiador').forEach(v => {
-    const chave = v.nome.trim().toLowerCase();
-    if(!grupos[chave]) grupos[chave] = { nomeExibicao: v.nome.trim(), visitas: [] };
-    grupos[chave].visitas.push(v);
+    const k = v.nome.trim().toLowerCase();
+    if (!g[k]) g[k] = { nome: v.nome.trim(), visitas: [] };
+    g[k].visitas.push(v);
   });
-  Object.values(grupos).forEach(g => {
-    g.visitas.sort((a,b) => {
-      const ta = a.timestamp?.toDate?.() || new Date(0);
-      const tb = b.timestamp?.toDate?.() || new Date(0);
-      return ta - tb;
-    });
-  });
-  return grupos;
+  Object.values(g).forEach(ap =>
+    ap.visitas.sort((a,b) =>
+      (a.timestamp?.toDate?.() || 0) - (b.timestamp?.toDate?.() || 0)));
+  return g;
 }
 
-// ═══════════════════════════════════════════════════════════
-//  GERAR PDF — APOIADORES
-// ═══════════════════════════════════════════════════════════
-async function gerarPDFApoiadores() {
-  if (visitasCache.length === 0) {
-    showToast("Nenhuma visita carregada. Verifique a conexão com o Firebase.", "warning");
+// ════════════════════════════════════════
+//  GERAR PDFs
+// ════════════════════════════════════════
+async function gerarPDFs() {
+  if (cache.length === 0) {
+    toast('Nenhuma visita carregada. Verifique a conexão com o Firebase.', 'w');
     return;
   }
-
-  const apoiadores = agruparApoiadores(visitasCache);
-  const nomes      = Object.keys(apoiadores);
-
+  const ap    = agruparApoiadores(cache);
+  const nomes = Object.keys(ap);
   if (nomes.length === 0) {
-    showToast("Nenhum apoiador encontrado nas visitas carregadas.", "warning");
+    toast('Nenhum apoiador encontrado no histórico.', 'w');
     return;
   }
 
-  const btn = document.getElementById('btnGerarPDF');
+  const btn = document.getElementById('btn-pdf');
   btn.disabled = true;
-  btn.innerHTML = `<span class="spinner"></span><span> Gerando PDFs...</span>`;
+  btn.innerHTML = `<span class="spin"></span><span> Gerando...</span>`;
 
-  const overlay  = document.getElementById('pdfOverlay');
-  const msgEl    = document.getElementById('pdfOverlayMsg');
-  const detailEl = document.getElementById('pdfOverlayDetail');
-  const barEl    = document.getElementById('pdfProgressBar');
-  overlay.classList.remove('hidden');
+  const overlay = document.getElementById('overlay');
+  const ovMsg   = document.getElementById('ov-msg');
+  const ovDet   = document.getElementById('ov-detail');
+  const ovFill  = document.getElementById('ov-fill');
+  overlay.classList.add('show');
+  await sleep(60);
 
-  await sleep(80);
-
-  let gerados = 0, erros = 0;
+  let ok = 0, fail = 0;
 
   for (let i = 0; i < nomes.length; i++) {
-    const apoiador = apoiadores[nomes[i]];
-    barEl.style.width   = Math.round((i / nomes.length) * 100) + '%';
-    msgEl.textContent   = `Gerando PDF ${i + 1} de ${nomes.length}`;
-    detailEl.textContent = apoiador.nomeExibicao;
-    await sleep(30);
-
+    const apoiador = ap[nomes[i]];
+    ovFill.style.width  = Math.round(i / nomes.length * 100) + '%';
+    ovMsg.textContent   = `PDF ${i+1} de ${nomes.length}`;
+    ovDet.textContent   = apoiador.nome;
+    await sleep(20);
     try {
-      const pdf = construirPDFApoiador(apoiador);
-      pdf.save(`apoiador_${sanitizarNomeArquivo(apoiador.nomeExibicao)}.pdf`);
-      gerados++;
-      await sleep(400);
-    } catch (err) {
-      erros++;
-      console.error(`Erro no PDF de ${apoiador.nomeExibicao}:`, err);
-      detailEl.textContent = `❌ Erro: ${err.message}`;
-      await sleep(800);
+      construirPDF(apoiador).save(`apoiador_${slug(apoiador.nome)}.pdf`);
+      ok++;
+      await sleep(350);
+    } catch(e) {
+      fail++;
+      console.error('PDF error:', e);
+      ovDet.textContent = '❌ ' + e.message;
+      await sleep(700);
     }
   }
 
-  barEl.style.width   = '100%';
-  msgEl.textContent   = erros === 0 ? `✅ ${gerados} PDF(s) gerado(s)!` : `⚠️ ${gerados} OK · ${erros} com erro`;
-  detailEl.textContent = erros === 0 ? 'Downloads iniciados' : 'Abra o console (F12) para ver o erro';
-  await sleep(1800);
+  ovFill.style.width = '100%';
+  ovMsg.textContent  = ok > 0 ? `✅ ${ok} PDF(s) gerado(s)!` : '❌ Erro ao gerar PDFs';
+  ovDet.textContent  = fail > 0 ? `${fail} erro(s) — veja o console (F12)` : 'Downloads iniciados';
+  await sleep(1600);
 
-  overlay.classList.add('hidden');
+  overlay.classList.remove('show');
   btn.disabled = false;
-  btn.innerHTML = `<i data-lucide="file-text" style="width:20px;height:20px;"></i> Gerar PDFs dos Apoiadores`;
+  btn.innerHTML = `<i data-lucide="file-text" style="width:19px;height:19px;"></i> Gerar PDFs dos Apoiadores`;
   lucide.createIcons();
-  if (gerados > 0) showToast(`✅ ${gerados} PDF(s) gerado(s)!`, "success");
+  if (ok > 0) toast(`✅ ${ok} PDF(s) gerado(s)!`, 's');
 }
 
-// ─────────────────────────────────────────────────────────
-//  CONSTRUTOR DE PDF
-// ─────────────────────────────────────────────────────────
-function construirPDFApoiador(apoiador) {
+// ════════════════════════════════════════
+//  CONSTRUTOR PDF
+// ════════════════════════════════════════
+function construirPDF(ap) {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const PW=210, PH=297, ML=14, MR=14, CW=182;
 
-  const PW=210, PH=297, ML=15, MR=15, CW=180;
-  const VERDE=[0,166,81], VERDE_CLR=[187,247,208], CINZA_ESC=[5,16,30];
-  const CINZA_MED=[74,112,144], CINZA_CLA=[148,163,184], BRANCO=[255,255,255];
-  const GOLD=[240,180,41], INDIGO=[26,111,196], CARD=[11,29,48];
+  const VD=[0,166,81], VA=[187,247,208], CE=[5,16,30];
+  const CM=[74,112,144], CC=[148,163,184], BR=[255,255,255];
+  const GD=[240,180,41], IN=[26,111,196], CD=[11,29,48];
 
-  const dataGeracao = new Date().toLocaleString('pt-BR');
+  const gerado = new Date().toLocaleString('pt-BR');
   let y = 0;
 
   // Cabeçalho
-  doc.setFillColor(...CINZA_ESC);
-  doc.rect(0,0,PW,56,'F');
-  doc.setFillColor(...VERDE);
-  doc.rect(0,0,PW,4,'F');
-  doc.setFillColor(...GOLD);
-  doc.rect(0,4,PW,1.5,'F');
-
-  // Listras decorativas
-  for(let i=0;i<8;i++){
-    doc.setFillColor(0,166,81, i%2===0?0.04:0.02);
-    doc.rect(i*28,0,14,56,'F');
-  }
+  doc.setFillColor(...CE); doc.rect(0,0,PW,54,'F');
+  doc.setFillColor(...VD); doc.rect(0,0,PW,4,'F');
+  doc.setFillColor(...GD); doc.rect(0,4,PW,2,'F');
 
   doc.setFont('helvetica','bold');
-  doc.setFontSize(7); doc.setTextColor(...VERDE_CLR);
-  doc.text('CAMPO APP · CAMPANHA 2026', ML, 13);
-
-  doc.setFontSize(7); doc.setTextColor(...CINZA_CLA);
-  doc.text(`Gerado: ${dataGeracao}`, PW-MR, 13, {align:'right'});
+  doc.setFontSize(7); doc.setTextColor(...VA);
+  doc.text('CAMPO APP · CAMPANHA 2026', ML, 12);
+  doc.setTextColor(...CC); doc.setFont('helvetica','normal');
+  doc.text(`Gerado: ${gerado}`, PW-MR, 12, {align:'right'});
 
   doc.setFont('helvetica','bold');
-  doc.setFontSize(22); doc.setTextColor(...BRANCO);
-  doc.text('RELATÓRIO DE', ML, 26);
-  doc.setTextColor(...GOLD);
-  doc.text('APOIADOR', ML, 36);
-
-  doc.setFillColor(...GOLD);
-  doc.rect(ML,38,30,1.5,'F');
+  doc.setFontSize(20); doc.setTextColor(...BR);
+  doc.text('RELATÓRIO DE APOIADOR', ML, 26);
+  doc.setFontSize(11); doc.setTextColor(...GD);
+  doc.text(NOME_CAMPANHA, ML, 34);
 
   // Card do apoiador
-  doc.setFillColor(...CARD);
-  doc.roundedRect(ML,42,CW,20,3,3,'F');
-  doc.setDrawColor(...VERDE);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(ML,42,CW,20,3,3,'S');
-  doc.setFillColor(...VERDE);
-  doc.roundedRect(ML,42,4,20,2,2,'F');
-
+  doc.setFillColor(...CD); doc.roundedRect(ML,40,CW,18,3,3,'F');
+  doc.setDrawColor(...VD); doc.setLineWidth(.5);
+  doc.roundedRect(ML,40,CW,18,3,3,'S');
+  doc.setFillColor(...VD); doc.roundedRect(ML,40,4,18,2,2,'F');
   doc.setFont('helvetica','bold');
-  doc.setFontSize(13); doc.setTextColor(...BRANCO);
-  doc.text(apoiador.nomeExibicao, ML+8, 50);
+  doc.setFontSize(12); doc.setTextColor(...BR);
+  doc.text(ap.nome, ML+7, 47);
+  doc.setFontSize(8); doc.setTextColor(...VA);
+  doc.text(`✅ Apoiador Confirmado  ·  ${ap.visitas.length} visita(s)`, ML+7, 53);
 
-  const totalV = apoiador.visitas.length;
-  doc.setFontSize(8); doc.setTextColor(...VERDE_CLR);
-  doc.text(`✅ Apoiador Confirmado  ·  ${totalV} visita${totalV!==1?'s':''}`, ML+8, 57);
+  y = 67;
 
-  y = 70;
-
-  doc.setDrawColor(...CINZA_MED);
-  doc.setLineWidth(0.3);
+  // Linha
+  doc.setDrawColor(...CM); doc.setLineWidth(.3);
   doc.line(ML,y-2,PW-MR,y-2);
 
+  // Título histórico
   doc.setFont('helvetica','bold');
-  doc.setFontSize(8); doc.setTextColor(...VERDE);
+  doc.setFontSize(8); doc.setTextColor(...VD);
   doc.text('HISTÓRICO DE VISITAS', ML, y+3);
   y += 8;
 
   // Tabela
-  const tableRows = apoiador.visitas.map((v,idx) => {
-    const loc      = v.localizacao || {};
-    const hora     = v.timestamp?.toDate ? v.timestamp.toDate().toLocaleString('pt-BR') : 'Sem data';
-    const endereco = v.endereco || `${(loc.lat||0).toFixed(5)}, ${(loc.lng||0).toFixed(5)}`;
-    const obs      = v.observacao || '—';
-    return [`#${idx+1}`, hora, endereco, obs, loc.precisao?`±${loc.precisao}m`:'—'];
-  });
-
   doc.autoTable({
-    startY:y, head:[['#','Data / Hora','Endereço','Observação','Precisão']], body:tableRows,
-    margin:{left:ML,right:MR},
-    styles:{ fontSize:7.5, cellPadding:2.5, font:'helvetica', textColor:[226,232,240], fillColor:[5,16,30], lineColor:[26,58,85], lineWidth:0.2, overflow:'linebreak' },
-    headStyles:{ fillColor:[0,166,81], textColor:[255,255,255], fontStyle:'bold', fontSize:7.5, halign:'center' },
-    alternateRowStyles:{ fillColor:[11,29,48] },
-    columnStyles:{ 0:{halign:'center',cellWidth:8}, 1:{cellWidth:36}, 2:{cellWidth:72}, 3:{cellWidth:38}, 4:{halign:'center',cellWidth:16} }
+    startY: y,
+    head: [['#','Data / Hora','Endereço','Observação','Precisão']],
+    body: ap.visitas.map((v,i) => {
+      const loc = v.localizacao || {};
+      const hora = v.timestamp?.toDate ? v.timestamp.toDate().toLocaleString('pt-BR') : '—';
+      const end  = v.endereco || `${(loc.lat||0).toFixed(5)}, ${(loc.lng||0).toFixed(5)}`;
+      return [`#${i+1}`, hora, end, v.observacao||'—', loc.precisao?`±${loc.precisao}m`:'—'];
+    }),
+    margin: {left:ML, right:MR},
+    styles: { fontSize:7.5, cellPadding:2.5, font:'helvetica', textColor:[220,235,248], fillColor:[5,16,30], lineColor:[26,55,82], lineWidth:.2, overflow:'linebreak' },
+    headStyles: { fillColor:[0,166,81], textColor:[255,255,255], fontStyle:'bold', fontSize:7.5, halign:'center' },
+    alternateRowStyles: { fillColor:[11,29,48] },
+    columnStyles: { 0:{halign:'center',cellWidth:8}, 1:{cellWidth:36}, 2:{cellWidth:72}, 3:{cellWidth:38}, 4:{halign:'center',cellWidth:16} }
   });
 
   y = doc.lastAutoTable.finalY + 10;
 
+  // Localização por visita
   doc.setFont('helvetica','bold');
-  doc.setFontSize(8); doc.setTextColor(...VERDE);
-  doc.text('LOCALIZAÇÃO POR VISITA', ML, y);
-  y += 6;
+  doc.setFontSize(8); doc.setTextColor(...VD);
+  doc.text('LOCALIZAÇÃO POR VISITA', ML, y); y += 6;
 
-  apoiador.visitas.forEach((v,idx) => {
-    const loc      = v.localizacao || {};
-    const lat      = loc.lat||0, lng=loc.lng||0, prec=loc.precisao||0;
-    const hora     = v.timestamp?.toDate ? v.timestamp.toDate().toLocaleString('pt-BR') : 'Sem data';
-    const endereco = v.endereco || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-    const obs      = v.observacao || '';
-    const CARD_H   = obs ? 64 : 52;
-    const MAP_W=72, INFO_X=ML+MAP_W+5, INFO_W=CW-MAP_W-5;
+  for (const [i, v] of ap.visitas.entries()) {
+    const loc  = v.localizacao || {};
+    const lat  = loc.lat || 0, lng = loc.lng || 0, prec = loc.precisao || 0;
+    const hora = v.timestamp?.toDate ? v.timestamp.toDate().toLocaleString('pt-BR') : '—';
+    const end  = v.endereco || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    const obs  = v.observacao || '';
+    const CH   = obs ? 64 : 52;
+    const MW   = 70, IX = ML+MW+5, IW = CW-MW-5;
 
-    if(y+CARD_H+8>PH-20){
+    if (y + CH + 6 > PH - 18) {
       doc.addPage();
-      doc.setFillColor(...CINZA_ESC); doc.rect(0,0,PW,14,'F');
-      doc.setFillColor(...VERDE);     doc.rect(0,0,PW,2,'F');
-      doc.setFillColor(...GOLD);      doc.rect(0,2,PW,1,'F');
+      doc.setFillColor(...CE); doc.rect(0,0,PW,13,'F');
+      doc.setFillColor(...VD); doc.rect(0,0,PW,2,'F');
+      doc.setFillColor(...GD); doc.rect(0,2,PW,1,'F');
       doc.setFont('helvetica','bold'); doc.setFontSize(7);
-      doc.setTextColor(...VERDE_CLR); doc.text('CAMPO APP · 2026',ML,9);
-      doc.setTextColor(...CINZA_CLA); doc.setFont('helvetica','normal');
-      doc.text(apoiador.nomeExibicao,PW-MR,9,{align:'right'});
-      y=20;
+      doc.setTextColor(...VA); doc.text('CAMPO APP · 2026', ML, 9);
+      doc.setTextColor(...CC); doc.setFont('helvetica','normal');
+      doc.text(ap.nome, PW-MR, 9, {align:'right'});
+      y = 19;
     }
 
-    doc.setFillColor(...CARD);
-    doc.roundedRect(ML,y,CW,CARD_H,2,2,'F');
-    doc.setDrawColor(26,58,85); doc.setLineWidth(0.3);
-    doc.roundedRect(ML,y,CW,CARD_H,2,2,'S');
+    // Card
+    doc.setFillColor(...CD); doc.roundedRect(ML,y,CW,CH,2,2,'F');
+    doc.setDrawColor(26,55,82); doc.setLineWidth(.3);
+    doc.roundedRect(ML,y,CW,CH,2,2,'S');
 
-    desenharMiniMapa(doc,ML,y,MAP_W,CARD_H,lat,lng);
+    // Mini-mapa
+    miniMapa(doc, ML, y, MW, CH, lat, lng);
 
+    // Info
     doc.setFont('helvetica','bold'); doc.setFontSize(7);
-    doc.setTextColor(...CINZA_CLA); doc.text(`VISITA #${idx+1}`,INFO_X,y+6);
+    doc.setTextColor(...CC); doc.text(`VISITA #${i+1}`, IX, y+6);
 
-    doc.setFillColor(...VERDE); doc.roundedRect(ML+CW-18,y+2,16,6,1,1,'F');
+    doc.setFillColor(...VD); doc.roundedRect(ML+CW-17,y+2,15,6,1,1,'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(6);
-    doc.setTextColor(...BRANCO); doc.text(`±${prec}m`,ML+CW-10,y+6.5,{align:'center'});
+    doc.setTextColor(...BR); doc.text(`±${prec}m`, ML+CW-9.5, y+6.5, {align:'center'});
 
     doc.setFont('helvetica','bold'); doc.setFontSize(8);
-    doc.setTextColor(...BRANCO); doc.text(hora,INFO_X,y+13);
+    doc.setTextColor(...BR); doc.text(hora, IX, y+13);
 
-    doc.setDrawColor(...CINZA_MED); doc.setLineWidth(0.2);
-    doc.line(INFO_X,y+16,ML+CW-2,y+16);
+    doc.setDrawColor(...CM); doc.setLineWidth(.2);
+    doc.line(IX, y+16, ML+CW-2, y+16);
 
     doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-    doc.setTextColor(...CINZA_CLA); doc.text('Endereço',INFO_X,y+22);
-
+    doc.setTextColor(...CC); doc.text('Endereço', IX, y+22);
     doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
-    doc.setTextColor(...BRANCO);
-    const endLines = doc.splitTextToSize(endereco,INFO_W-2);
-    doc.text(endLines.slice(0,2),INFO_X,y+27);
+    doc.setTextColor(...BR);
+    doc.text(doc.splitTextToSize(end, IW-2).slice(0,2), IX, y+27);
 
-    if(obs){
+    if (obs) {
       doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-      doc.setTextColor(...CINZA_CLA); doc.text('Observação',INFO_X,y+40);
+      doc.setTextColor(...CC); doc.text('Observação', IX, y+40);
       doc.setFont('helvetica','italic'); doc.setFontSize(7);
-      doc.setTextColor(...GOLD);
-      const obsLines=doc.splitTextToSize(obs,INFO_W-2);
-      doc.text(obsLines.slice(0,2),INFO_X,y+45);
+      doc.setTextColor(...GD);
+      doc.text(doc.splitTextToSize(obs, IW-2).slice(0,2), IX, y+45);
     }
 
-    const mapsUrl=`https://maps.google.com/?q=${lat},${lng}`;
     doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-    doc.setTextColor(...INDIGO);
-    doc.textWithLink('🔗 Abrir no Google Maps →',INFO_X,y+CARD_H-4,{url:mapsUrl});
+    doc.setTextColor(...IN);
+    doc.textWithLink('🔗 Abrir no Google Maps →', IX, y+CH-4,
+      {url:`https://maps.google.com/?q=${lat},${lng}`});
 
-    y += CARD_H+5;
-  });
+    y += CH + 5;
+  }
 
-  const pageCount=doc.internal.getNumberOfPages();
-  for(let p=1;p<=pageCount;p++){
+  // Rodapé em todas as páginas
+  const total = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= total; p++) {
     doc.setPage(p);
-    doc.setFillColor(...CINZA_ESC); doc.rect(0,PH-12,PW,12,'F');
-    doc.setFillColor(...VERDE);     doc.rect(0,PH-12,PW,1.5,'F');
+    doc.setFillColor(...CE); doc.rect(0,PH-11,PW,11,'F');
+    doc.setFillColor(...VD); doc.rect(0,PH-11,PW,1.5,'F');
     doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-    doc.setTextColor(...CINZA_CLA);
-    doc.text(`${NOME_CAMPANHA}  |  Relatório de Apoiador`,ML,PH-5);
-    doc.text(`Pág. ${p} / ${pageCount}`,PW-MR,PH-5,{align:'right'});
+    doc.setTextColor(...CC);
+    doc.text(`${NOME_CAMPANHA}  |  Relatório de Apoiador`, ML, PH-5);
+    doc.text(`Pág. ${p}/${total}`, PW-MR, PH-5, {align:'right'});
   }
 
   return doc;
 }
 
-// ─────────────────────────────────────────────────────────
-//  MINI-MAPA NO PDF
-// ─────────────────────────────────────────────────────────
-function desenharMiniMapa(doc,x,y,w,h,lat,lng){
-  const AZUL_ESC=[5,16,30], AZUL_RUA=[26,58,85], VERMELHO=[229,48,48], BRANCO=[255,255,255], CINZA=[74,112,144];
-
-  doc.setFillColor(...AZUL_ESC); doc.roundedRect(x,y,w,h,2,2,'F');
-
-  doc.setDrawColor(...AZUL_RUA); doc.setLineWidth(0.8);
-  [0.2,0.38,0.55,0.72].forEach(g => doc.line(x,y+h*g,x+w,y+h*g));
-  [0.18,0.38,0.58,0.78].forEach(g => doc.line(x+w*g,y,x+w*g,y+h*0.82));
-
-  doc.setDrawColor(26,78,130); doc.setLineWidth(2.2);
-  doc.line(x,y+h*0.46,x+w,y+h*0.46);
-  doc.setLineWidth(1.5); doc.line(x+w*0.42,y,x+w*0.42,y+h*0.82);
-
-  doc.setFillColor(3,10,20); doc.rect(x,y+h*0.82,w,h*0.18,'F');
-
-  const pinX=x+w*0.5, pinY=y+h*0.46;
-  doc.setFillColor(0,0,0); doc.ellipse(pinX,pinY+1,3,1,'F');
-  doc.setDrawColor(...VERMELHO); doc.setLineWidth(0.5);
-  doc.circle(pinX,pinY,5,'S');
-  doc.setFillColor(...VERMELHO); doc.circle(pinX,pinY-5,3.5,'F');
-  doc.setDrawColor(...VERMELHO); doc.setLineWidth(1);
-  doc.line(pinX,pinY-1.5,pinX,pinY);
-  doc.setFillColor(...BRANCO); doc.circle(pinX,pinY-5,1.2,'F');
-
+// Mini-mapa no PDF (desenhado com primitivas)
+function miniMapa(doc, x, y, w, h, lat, lng) {
+  doc.setFillColor(5,16,30); doc.roundedRect(x,y,w,h,2,2,'F');
+  doc.setDrawColor(22,55,88); doc.setLineWidth(.7);
+  [.2,.38,.56,.73].forEach(g => doc.line(x,y+h*g,x+w,y+h*g));
+  [.2,.4,.6,.8].forEach(g  => doc.line(x+w*g,y,x+w*g,y+h*.82));
+  doc.setDrawColor(30,80,140); doc.setLineWidth(2);
+  doc.line(x,y+h*.46,x+w,y+h*.46);
+  doc.setLineWidth(1.4); doc.line(x+w*.42,y,x+w*.42,y+h*.82);
+  doc.setFillColor(3,10,22); doc.rect(x,y+h*.82,w,h*.18,'F');
+  const px=x+w*.5, py=y+h*.46;
+  doc.setFillColor(0,0,0); doc.ellipse(px,py+1,3,1,'F');
+  doc.setDrawColor(224,48,48); doc.setLineWidth(.5); doc.circle(px,py,5,'S');
+  doc.setFillColor(224,48,48); doc.circle(px,py-5,3.5,'F');
+  doc.setDrawColor(224,48,48); doc.setLineWidth(1); doc.line(px,py-1.5,px,py);
+  doc.setFillColor(255,255,255); doc.circle(px,py-5,1.2,'F');
   doc.setFont('helvetica','bold'); doc.setFontSize(5.5);
-  doc.setTextColor(...CINZA);
+  doc.setTextColor(74,112,144);
   doc.text(`${lat.toFixed(5)}, ${lng.toFixed(5)}`,x+w/2,y+h-5,{align:'center'});
-
-  doc.setDrawColor(26,58,85); doc.setLineWidth(0.4);
+  doc.setDrawColor(22,55,88); doc.setLineWidth(.4);
   doc.roundedRect(x,y,w,h,2,2,'S');
 }
 
-// ─────────────────────────────────────────────────────────
-//  UTILITÁRIOS
-// ─────────────────────────────────────────────────────────
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-function sanitizarNomeArquivo(nome){
-  return nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-zA-Z0-9\s_-]/g,'').trim()
-    .replace(/\s+/g,'_').substring(0,50).toLowerCase();
+// ════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════
+let toastT;
+function toast(msg, tipo='i') {
+  const el = document.getElementById('toast');
+  el.className = tipo;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-function escapeHtml(str){
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+// ════════════════════════════════════════
+//  UTILIDADES
+// ════════════════════════════════════════
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function slug(s) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-zA-Z0-9 _-]/g,'').trim()
+    .replace(/\s+/g,'_').slice(0,50).toLowerCase();
+}
+
+function xss(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ─────────────────────────────────────────────────────────
-//  GERADOR DE ÍCONE PWA (canvas → apple-touch-icon + manifest)
-//  Desenha o ícone Campo 2026 diretamente no canvas do browser.
-//  Resultado: PNG base64 usado como apple-touch-icon e
-//  como ícone do manifest (para Android "Adicionar à tela").
-// ─────────────────────────────────────────────────────────
+// ════════════════════════════════════════
+//  ÍCONE PWA (canvas)
+// ════════════════════════════════════════
 function gerarIconePWA() {
-  const SIZE = 512;
-  const c    = document.createElement('canvas');
-  c.width = c.height = SIZE;
-  const ctx  = c.getContext('2d');
-  const S    = SIZE;
-  const cx   = S / 2;
-
-  // ── Fundo arredondado ──────────────────────────────────
-  const radius = 110;
-  ctx.beginPath();
-  ctx.moveTo(radius, 0);
-  ctx.lineTo(S - radius, 0);
-  ctx.quadraticCurveTo(S, 0, S, radius);
-  ctx.lineTo(S, S - radius);
-  ctx.quadraticCurveTo(S, S, S - radius, S);
-  ctx.lineTo(radius, S);
-  ctx.quadraticCurveTo(0, S, 0, S - radius);
-  ctx.lineTo(0, radius);
-  ctx.quadraticCurveTo(0, 0, radius, 0);
-  ctx.closePath();
-  ctx.fillStyle = '#05101e';
-  ctx.fill();
-  ctx.save();
-  ctx.clip(); // todo o desenho fica dentro do rounded rect
-
-  // ── Textura de listras diagonais sutis ─────────────────
-  ctx.save();
-  for (let i = -S; i < S * 2; i += 30) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i + S, S);
-    ctx.strokeStyle = 'rgba(0,166,81,0.05)';
-    ctx.lineWidth = 12;
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // ── Cantos decorativos dourados ────────────────────────
-  ctx.fillStyle = 'rgba(240,180,41,0.12)';
-  ctx.beginPath(); ctx.moveTo(0,S-140); ctx.lineTo(140,S); ctx.lineTo(0,S); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(S-140,0); ctx.lineTo(S,0);   ctx.lineTo(S,140); ctx.closePath(); ctx.fill();
-
-  // ── Barra verde topo ──────────────────────────────────
-  ctx.fillStyle = '#00a651';
-  ctx.fillRect(0, 0, S, 9);
-  // Faixa dourada abaixo
-  ctx.fillStyle = '#f0b429';
-  ctx.fillRect(0, 9, S, 5);
-
-  // ── Círculo verde de fundo ────────────────────────────
-  const pinCY = 208;
-  ctx.save();
-  ctx.shadowColor = 'rgba(0,166,81,0.55)';
-  ctx.shadowBlur  = 40;
-  ctx.beginPath();
-  ctx.arc(cx, pinCY, 116, 0, Math.PI * 2);
-  ctx.fillStyle = '#00a651';
-  ctx.fill();
-  ctx.restore();
-
-  // Anel interno escuro
-  ctx.beginPath();
-  ctx.arc(cx, pinCY, 116, 0, Math.PI * 2);
-  ctx.strokeStyle = '#007a3d';
-  ctx.lineWidth = 10;
-  ctx.stroke();
-
-  // ── Estrela dourada ───────────────────────────────────
-  function drawStar(x, y, r1, r2, pts, color) {
-    ctx.save();
-    ctx.shadowColor = 'rgba(240,180,41,0.7)';
-    ctx.shadowBlur  = 20;
-    ctx.beginPath();
-    for (let i = 0; i < pts * 2; i++) {
-      const angle  = (i * Math.PI) / pts - Math.PI / 2;
-      const radius = i % 2 === 0 ? r1 : r2;
-      const px = x + Math.cos(angle) * radius;
-      const py = y + Math.sin(angle) * radius;
-      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.restore();
-  }
-
-  drawStar(cx, pinCY, 78, 36, 5, '#f0b429');
-  // Estrela pequena brilhante por cima
-  drawStar(cx, pinCY, 62, 28, 5, '#ffd166');
-
-  // ── Pin de localização ────────────────────────────────
-  const pinTop = 304, pinMid = 350;
-  ctx.save();
-  ctx.shadowColor = 'rgba(0,166,81,0.5)';
-  ctx.shadowBlur  = 18;
-  ctx.beginPath();
-  // Forma de gota do pin
-  ctx.moveTo(cx, pinTop + 130);
-  ctx.bezierCurveTo(cx - 6, pinTop + 110, cx - 46, pinTop + 60, cx - 46, pinTop + 20);
-  ctx.arc(cx, pinTop + 20, 46, Math.PI, 0, false);
-  ctx.bezierCurveTo(cx + 46, pinTop + 60, cx + 6, pinTop + 110, cx, pinTop + 130);
-  ctx.closePath();
-  ctx.fillStyle = '#00cc66';
-  ctx.fill();
-  ctx.restore();
-
-  // Ponto branco dentro do pin
-  ctx.beginPath();
-  ctx.arc(cx, pinTop + 20, 16, 0, Math.PI * 2);
-  ctx.fillStyle = '#05101e';
-  ctx.fill();
-
-  // ── Texto "2026" ──────────────────────────────────────
-  ctx.save();
-  ctx.shadowColor = 'rgba(240,180,41,0.8)';
-  ctx.shadowBlur  = 16;
-  ctx.font        = '900 86px "Arial Black", Arial, sans-serif';
-  ctx.fillStyle   = '#f0b429';
-  ctx.textAlign   = 'center';
-  ctx.textBaseline = 'alphabetic';
-  ctx.letterSpacing = '4px';
-  ctx.fillText('2026', cx, S - 18);
-  ctx.restore();
-
-  // ── Borda verde arredondada (outline) ─────────────────
-  ctx.restore(); // sai do clip
-  ctx.beginPath();
-  ctx.moveTo(radius, 0);
-  ctx.lineTo(S - radius, 0);
-  ctx.quadraticCurveTo(S, 0, S, radius);
-  ctx.lineTo(S, S - radius);
-  ctx.quadraticCurveTo(S, S, S - radius, S);
-  ctx.lineTo(radius, S);
-  ctx.quadraticCurveTo(0, S, 0, S - radius);
-  ctx.lineTo(0, radius);
-  ctx.quadraticCurveTo(0, 0, radius, 0);
-  ctx.closePath();
-  ctx.strokeStyle = '#00a651';
-  ctx.lineWidth   = 18;
-  ctx.stroke();
-
-  return c.toDataURL('image/png');
-}
-
-// ─────────────────────────────────────────────────────────
-//  REGISTRAR PWA (manifest + ícones)
-// ─────────────────────────────────────────────────────────
-function registrarPWA() {
   try {
-    const iconDataURL = gerarIconePWA();
+    const S=512, c=document.createElement('canvas');
+    c.width=c.height=S;
+    const ctx=c.getContext('2d'), cx=S/2, r=110;
 
-    // Apple touch icon
-    document.getElementById('appleIcon').href = iconDataURL;
-
-    // Manifest para Android / Chrome "Adicionar à tela"
-    const manifest = {
-      name:             'Campo 2026',
-      short_name:       'Campo 2026',
-      description:      'Rastreio de campanha política de campo',
-      start_url:        './',
-      display:          'standalone',
-      background_color: '#05101e',
-      theme_color:      '#05101e',
-      orientation:      'portrait',
-      icons: [
-        { src: iconDataURL, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-        { src: iconDataURL, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
-      ]
+    const rr=(x,y,w,h,rad)=>{
+      ctx.beginPath();ctx.moveTo(x+rad,y);ctx.lineTo(x+w-rad,y);
+      ctx.quadraticCurveTo(x+w,y,x+w,y+rad);ctx.lineTo(x+w,y+h-rad);
+      ctx.quadraticCurveTo(x+w,y+h,x+w-rad,y+h);ctx.lineTo(x+rad,y+h);
+      ctx.quadraticCurveTo(x,y+h,x,y+h-rad);ctx.lineTo(x,y+rad);
+      ctx.quadraticCurveTo(x,y,x+rad,y);ctx.closePath();
     };
 
-    const blob    = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-    const blobURL = URL.createObjectURL(blob);
-    document.getElementById('pwaManifest').href = blobURL;
+    rr(0,0,S,S,r); ctx.fillStyle='#030d18'; ctx.fill();
+    ctx.save(); ctx.clip();
 
-    console.log('✅ PWA registrada com ícone gerado');
-  } catch(err) {
-    console.warn('⚠️ Não foi possível gerar ícone PWA:', err);
-  }
+    // Listras
+    for(let i=-S;i<S*2;i+=28){
+      ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+S,S);
+      ctx.strokeStyle='rgba(0,166,81,.05)';ctx.lineWidth=12;ctx.stroke();
+    }
+
+    // Barras topo
+    ctx.fillStyle='#00a651'; ctx.fillRect(0,0,S,9);
+    ctx.fillStyle='#f0b429'; ctx.fillRect(0,9,S,5);
+
+    // Círculo verde
+    ctx.save();
+    ctx.shadowColor='rgba(0,166,81,.5)';ctx.shadowBlur=40;
+    ctx.beginPath();ctx.arc(cx,200,115,0,Math.PI*2);
+    ctx.fillStyle='#00a651';ctx.fill();ctx.restore();
+
+    ctx.beginPath();ctx.arc(cx,200,115,0,Math.PI*2);
+    ctx.strokeStyle='#007a3d';ctx.lineWidth=10;ctx.stroke();
+
+    // Estrela
+    const star=(x,y,r1,r2,n,col)=>{
+      ctx.save();ctx.shadowColor='rgba(240,180,41,.7)';ctx.shadowBlur=20;
+      ctx.beginPath();
+      for(let i=0;i<n*2;i++){
+        const a=i*Math.PI/n-Math.PI/2, rad=i%2?r2:r1;
+        i?ctx.lineTo(x+Math.cos(a)*rad,y+Math.sin(a)*rad)
+         :ctx.moveTo(x+Math.cos(a)*rad,y+Math.sin(a)*rad);
+      }
+      ctx.closePath();ctx.fillStyle=col;ctx.fill();ctx.restore();
+    };
+    star(cx,200,80,36,5,'#f0b429');
+    star(cx,200,63,28,5,'#ffd166');
+
+    // Pin
+    ctx.save();ctx.shadowColor='rgba(0,166,81,.5)';ctx.shadowBlur=18;
+    ctx.beginPath();ctx.moveTo(cx,440);
+    ctx.bezierCurveTo(cx-6,420,cx-46,370,cx-46,325);
+    ctx.arc(cx,325,46,Math.PI,0,false);
+    ctx.bezierCurveTo(cx+46,370,cx+6,420,cx,440);
+    ctx.closePath();ctx.fillStyle='#00cc66';ctx.fill();ctx.restore();
+    ctx.beginPath();ctx.arc(cx,325,15,0,Math.PI*2);
+    ctx.fillStyle='#030d18';ctx.fill();
+
+    // Texto "2026"
+    ctx.save();ctx.shadowColor='rgba(240,180,41,.8)';ctx.shadowBlur=16;
+    ctx.font='900 80px "Arial Black",Arial,sans-serif';
+    ctx.fillStyle='#f0b429';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.fillText('2026',cx,S-20);ctx.restore();
+
+    ctx.restore();
+    rr(0,0,S,S,r);ctx.strokeStyle='#00a651';ctx.lineWidth=18;ctx.stroke();
+
+    const url=c.toDataURL('image/png');
+
+    // Apple touch icon
+    let ai=document.getElementById('ai');
+    if(!ai){ai=document.createElement('link');ai.id='ai';ai.rel='apple-touch-icon';document.head.appendChild(ai);}
+    ai.href=url;
+
+    // Manifest
+    const mf=JSON.stringify({name:'Campo 2026',short_name:'Campo 2026',
+      description:'Rastreio de campanha política',start_url:'./',display:'standalone',
+      background_color:'#030d18',theme_color:'#030d18',orientation:'portrait',
+      icons:[{src:url,sizes:'512x512',type:'image/png',purpose:'any maskable'}]});
+    let ml=document.getElementById('mf');
+    if(!ml){ml=document.createElement('link');ml.id='mf';ml.rel='manifest';document.head.appendChild(ml);}
+    ml.href=URL.createObjectURL(new Blob([mf],{type:'application/json'}));
+  } catch(e) { console.warn('PWA icon error:', e); }
 }
-
-// Chama no boot junto com o resto
-document.addEventListener('DOMContentLoaded', () => {
-  lucide.createIcons();
-  monitorarConectividade();
-  iniciarSnapshotDoDia();
-  registrarPWA();
-});
+</script>
 </body>
 </html>
