@@ -311,6 +311,11 @@ textarea.finput{resize:none;}
     <div class="modal-fields">
 
       <div>
+        <label class="flbl" for="edit-agente">Registrado por</label>
+        <input id="edit-agente" class="finput" type="text" maxlength="100" autocomplete="off"/>
+      </div>
+
+      <div>
         <label class="flbl" for="edit-nome">Nome do Apoiador</label>
         <input id="edit-nome" class="finput" type="text" maxlength="100" autocomplete="off"/>
       </div>
@@ -381,6 +386,12 @@ textarea.finput{resize:none;}
   <div class="sec">
     <div class="sec-hdr">Nova Visita</div>
     <div class="form-card">
+
+      <div>
+        <label class="flbl" for="inp-agente">Registrado por <span style="color:var(--green);font-weight:700;">(seu nome)</span></label>
+        <input id="inp-agente" class="finput" type="text"
+          placeholder="Nome do agente de campo..." autocomplete="off" maxlength="100"/>
+      </div>
 
       <div>
         <label class="flbl" for="inp-nome">Nome do Apoiador</label>
@@ -504,6 +515,9 @@ document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
   iniciarSnapshot();
   gerarIconePWA();
+  // Pré-preenche nome do agente se já usado antes
+  const agenteSalvo = localStorage.getItem('campo2026_agente');
+  if (agenteSalvo) document.getElementById('inp-agente').value = agenteSalvo;
 });
 
 // ════════════════════════════════════════
@@ -568,12 +582,17 @@ function selecionarRC(btn, valor) {
 //  REGISTRAR VISITA
 // ════════════════════════════════════════
 async function registrar() {
-  const nome = document.getElementById('inp-nome').value.trim();
-  const obs  = document.getElementById('inp-obs').value.trim();
+  const agente = document.getElementById('inp-agente').value.trim();
+  const nome   = document.getElementById('inp-nome').value.trim();
+  const obs    = document.getElementById('inp-obs').value.trim();
 
+  if (!agente)       { toast('⚠️ Informe quem está registrando', 'w'); return; }
   if (!nome)         { toast('⚠️ Informe o nome do apoiador', 'w'); return; }
   if (!receptividade){ toast('⚠️ Selecione a receptividade', 'w'); return; }
   if (!db)           { toast('❌ Firebase não inicializado', 'e'); return; }
+
+  // Salva o nome do agente no localStorage para não precisar redigitar
+  localStorage.setItem('campo2026_agente', agente);
 
   const btn = document.getElementById('btn-reg');
   setBtn(btn, true, 'Obtendo GPS...');
@@ -617,6 +636,7 @@ async function registrar() {
   try {
     await db.collection('visitas').add({
       nome,
+      agente,
       receptividade,
       observacao: obs,
       endereco,
@@ -694,6 +714,7 @@ function setGPS(msg, tipo) {
 }
 
 function limpar() {
+  // Mantém o nome do agente preenchido (não limpa entre registros)
   document.getElementById('inp-nome').value = '';
   document.getElementById('inp-obs').value  = '';
   receptividade = null;
@@ -785,6 +806,9 @@ function criarCard(v) {
         <span style="display:flex;align-items:center;gap:4px;">
           <i data-lucide="crosshair" style="width:11px;height:11px;"></i>±${prec}m
         </span>
+        ${v.agente ? `<span style="display:flex;align-items:center;gap:4px;color:#a3c4e0;">
+          <i data-lucide="user" style="width:11px;height:11px;"></i>${xss(v.agente)}
+        </span>` : ''}
       </div>
       <div class="vaddr">
         <i data-lucide="map-pin" style="width:12px;height:12px;flex-shrink:0;margin-top:2px;color:#1a6fc4;"></i>
@@ -808,10 +832,11 @@ function abrirModal(id) {
   if (!v) { toast('Registro não encontrado', 'e'); return; }
 
   // Preenche os campos
-  document.getElementById('edit-id').value   = id;
-  document.getElementById('edit-nome').value = v.nome || '';
-  document.getElementById('edit-end').value  = v.endereco || '';
-  document.getElementById('edit-obs').value  = v.observacao || '';
+  document.getElementById('edit-id').value     = id;
+  document.getElementById('edit-agente').value = v.agente || '';
+  document.getElementById('edit-nome').value   = v.nome || '';
+  document.getElementById('edit-end').value    = v.endereco || '';
+  document.getElementById('edit-obs').value    = v.observacao || '';
 
   // Receptividade
   editRC_val = v.receptividade || null;
@@ -901,11 +926,12 @@ document.addEventListener('keydown', e => {
 function exportCSV() {
   const dados = cacheHoje.length > 0 ? cacheHoje : cache;
   if (dados.length === 0) { toast('Nenhum dado para exportar', 'w'); return; }
-  const hdr = ['Nome','Receptividade','Data/Hora','Endereço','Observação','Latitude','Longitude','Precisão(m)'];
+  const hdr = ['Agente','Nome Apoiador','Receptividade','Data/Hora','Endereço','Observação','Latitude','Longitude','Precisão(m)'];
   const rows = dados.map(v => {
     const loc  = v.localizacao || {};
     const hora = v.timestamp?.toDate ? v.timestamp.toDate().toLocaleString('pt-BR') : '';
     return [
+      `"${(v.agente||'').replace(/"/g,'""')}"`,
       `"${(v.nome||'').replace(/"/g,'""')}"`,
       `"${(v.receptividade||'').replace(/"/g,'""')}"`,
       `"${hora}"`,
@@ -975,7 +1001,7 @@ async function gerarPDFs() {
     await sleep(20);
     try {
       const dataHoje = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
-      construirPDF(apoiador).save(`apoiador_${slug(apoiador.nome)}_${dataHoje}.pdf`);
+      construirPDF(apoiador).save(`apoiador_${dataHoje}.pdf`);
       ok++;
       await sleep(350);
     } catch(e) {
@@ -1071,22 +1097,22 @@ function construirPDF(ap) {
       dataAtual = data;
       rowsPorData.push({ tipo: 'data', label: data.charAt(0).toUpperCase() + data.slice(1) });
     }
-    rowsPorData.push({ tipo: 'visita', num: i+1, hora, end, obs: v.observacao||'—', prec: loc.precisao ? `±${loc.precisao}m` : '—' });
+    rowsPorData.push({ tipo: 'visita', num: i+1, hora, end, obs: v.observacao||'—', prec: loc.precisao ? `±${loc.precisao}m` : '—', agente: v.agente||'—' });
   });
 
   doc.autoTable({
     startY: y,
-    head: [['#','Horário','Endereço','Observação','Precisão']],
+    head: [['#','Horário','Agente','Endereço','Observação','Precisão']],
     body: rowsPorData.map(r =>
       r.tipo === 'data'
-        ? [{ content: r.label, colSpan: 5, styles: { fontStyle:'bold', fillColor:[0,100,50], textColor:[187,247,208], fontSize:7.5, cellPadding:3 } }]
-        : [`#${r.num}`, r.hora.split(', ')[1] || r.hora, r.end, r.obs, r.prec]
+        ? [{ content: r.label, colSpan: 6, styles: { fontStyle:'bold', fillColor:[0,100,50], textColor:[187,247,208], fontSize:7.5, cellPadding:3 } }]
+        : [`#${r.num}`, r.hora.split(', ')[1] || r.hora, r.agente, r.end, r.obs, r.prec]
     ),
     margin: {left:ML, right:MR},
-    styles: { fontSize:7.5, cellPadding:2.5, font:'helvetica', textColor:[220,235,248], fillColor:[5,16,30], lineColor:[26,55,82], lineWidth:.2, overflow:'linebreak' },
-    headStyles: { fillColor:[0,166,81], textColor:[255,255,255], fontStyle:'bold', fontSize:7.5, halign:'center' },
+    styles: { fontSize:7, cellPadding:2.5, font:'helvetica', textColor:[220,235,248], fillColor:[5,16,30], lineColor:[26,55,82], lineWidth:.2, overflow:'linebreak' },
+    headStyles: { fillColor:[0,166,81], textColor:[255,255,255], fontStyle:'bold', fontSize:7, halign:'center' },
     alternateRowStyles: { fillColor:[11,29,48] },
-    columnStyles: { 0:{halign:'center',cellWidth:8}, 1:{cellWidth:28}, 2:{cellWidth:80}, 3:{cellWidth:44}, 4:{halign:'center',cellWidth:16} }
+    columnStyles: { 0:{halign:'center',cellWidth:8}, 1:{cellWidth:24}, 2:{cellWidth:30}, 3:{cellWidth:66}, 4:{cellWidth:36}, 5:{halign:'center',cellWidth:14} }
   });
 
   y = doc.lastAutoTable.finalY + 10;
